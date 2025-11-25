@@ -90,27 +90,52 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="(ticket, index) in tickets"
-              :key="ticket.id_ticket"
-              :class="[
-                index % 2 === 0 ? 'bg-gray-50' : 'bg-white',
-                'hover:bg-gray-100'
-              ]"
-            >
-              <td class="px-4 py-3 border border-gray-300 font-medium text-blue-600 truncate">
-                <router-link
-                  :to="`/tickets/${ticket.id_ticket_type || ticket.id_ticket}`"
-                  class="hover:underline"
-                >
-                  {{ ticket.id_ticket_type || ticket.id_ticket }}
-                </router-link>
-              </td>
-              <td class="px-4 py-3 border border-gray-300 font-semibold truncate" :class="ticket.status_overdue === 'Overdue' ? 'text-red-500' : 'text-green-600'">
+            <tr v-for="(ticket, index) in tickets" :key="ticket.id_ticket" :class="[ index % 2 === 0 ? 'bg-gray-50' : 'bg-white', 'hover:bg-gray-100']">
+                <!-- No (row number) -->
+                <td class="px-4 py-3 border border-gray-300 text-center">{{ (page - 1) * perPage + index + 1 }}</td>
+
+                <!-- ID Tiket: ONLY id_ticket_type -->
+                <td class="px-4 py-3 border border-gray-300 font-medium text-blue-600 truncate">
+                    <router-link
+                        v-if="ticket.id_ticket_type"
+                        :to="`/tickets/${ticket.id_ticket_type}`"
+                        class="hover:underline"
+                    >
+                        {{ ticket.id_ticket_type }}
+                    </router-link>
+                    <span v-else class="text-gray-500">
+                        -
+                    </span>
+                </td>
+
+                <td class="px-4 py-3 border border-gray-300">
+                  <button
+                    class="flex items-center space-x-1 group"
+                    @click="canRate(ticket) && openRatingModal(ticket)"
+                    :disabled="!canRate(ticket)"
+                  >
+                    <span
+                      class="text-yellow-500 text-sm font-semibold"
+                    >
+                      {{ getStars(ticket.nilai_rating) }}
+                    </span>
+                    <span class="ml-1 text-gray-500 text-xs">
+                      ({{ ticket.nilai_rating ?? 0 }})
+                    </span>
+                    <span
+                      v-if="canRate(ticket)"
+                      class="ml-2 text-xs text-blue-600 group-hover:underline"
+                    >
+                      Rate
+                    </span>
+                  </button>
+                </td>
+
+              <!-- <td class="px-4 py-3 border border-gray-300 font-semibold truncate" :class="ticket.status_overdue === 'Overdue' ? 'text-red-500' : 'text-green-600'">
                 {{ ticket.status_overdue }}
-              </td>
-              <td class="px-4 py-3 border border-gray-300 truncate text-red-600">{{ ticket.due_date }}</td>
+              </td> -->
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.ticket_title }}</td>
+              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.teks_pendukung }}</td>
 
               <!-- Ticket Type -->
               <!-- <td class="px-4 py-3 border border-gray-300">
@@ -127,7 +152,7 @@
                   :class="typeColorClass(ticket.ticket_type)"
                 />
               </td> -->
-              <td class="px-4 py-3 border border-gray-300 text-sm font-medium truncate" :class="typeColorClass(ticket.ticket_type)">{{ ticket.ticket_type }}</td>
+              <!-- <td class="px-4 py-3 border border-gray-300 text-sm font-medium truncate" :class="typeColorClass(ticket.ticket_type)">{{ ticket.ticket_type }}</td> -->
 
               <!-- Layanan Dropdown -->
               <!-- <td class="px-4 py-3 border border-gray-300">
@@ -147,7 +172,7 @@
                 />
               </td> -->
               
-              <td class="px-4 py-3 border border-gray-300 text-sm truncate">{{ customLayananLabel(ticket.id_layanan) }}</td>
+              <!-- <td class="px-4 py-3 border border-gray-300 text-sm truncate">{{ customLayananLabel(ticket.id_layanan) }}</td> -->
               
               <!-- <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.group_layanan }}</td> -->
 
@@ -167,6 +192,8 @@
                 />
               </td> -->
 
+              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.nama_rootcause }}</td>
+              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.nama_solusi }}</td>
               <td class="px-4 py-3 border border-gray-300 text-sm font-medium truncate" :class="statusColorClass(ticket.ticket_status)">{{ ticket.ticket_status }}</td>
 
               <!-- <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.tingkat_priority }}</td> -->
@@ -189,7 +216,7 @@
                   :class="priorityColorClass(ticket.tingkat_priority)"
                 />
               </td> -->
-              <td class="px-4 py-3 border border-gray-300 text-sm font-medium truncate" :class="priorityColorClass(ticket.tingkat_priority)">{{ customPriorityLabel(ticket.id_ticket_priority) }}</td>
+              <!-- <td class="px-4 py-3 border border-gray-300 text-sm font-medium truncate" :class="priorityColorClass(ticket.tingkat_priority)">{{ customPriorityLabel(ticket.id_ticket_priority) }}</td> -->
               
               <!-- PIC Ticket -->
               <!-- <td class="px-4 py-3 border border-gray-300">
@@ -207,7 +234,8 @@
                   class="custom-multiselect text-sm font-medium"
                 />
               </td> -->
-
+              
+              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.pic_closed }}</td>
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.pic_tiket }}</td>
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.nama_user }}</td>
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.nama_divisi }}</td>
@@ -227,10 +255,10 @@
                   :class="assignedColorClass(ticket.assigned_status)"
                 />
               </td> -->
-              <td class="px-4 py-3 border border-gray-300 text-sm font-medium truncate" :class="assignedColorClass(ticket.assigned_status)">{{ ticket.assigned_status }}</td>
+              <!-- <td class="px-4 py-3 border border-gray-300 text-sm font-medium truncate" :class="assignedColorClass(ticket.assigned_status)">{{ ticket.assigned_status }}</td>
 
 
-              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.assigned_date }}</td>
+              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.assigned_date }}</td> -->
 
               <!-- PIC Escalation -->
               <!-- <td class="px-4 py-3 border border-gray-300">
@@ -248,13 +276,13 @@
                   class="custom-multiselect text-sm font-medium"
                 />
               </td> -->
-              
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.pic_eskalasi }}</td>
-              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.tanggal_eskalasi }}</td>
+              <!-- <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.tanggal_eskalasi }}</td>
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.created_on }}</td>
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.created_by }}</td>
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.last_updated_on }}</td>
-              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.last_updated_by }}</td>
+              <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.last_updated_by }}</td> -->
+              <td class="px-4 py-3 border border-gray-300 truncate text-red-600">{{ ticket.due_date }}</td>
               <td class="px-4 py-3 border border-gray-300 truncate">{{ ticket.closed_date }}</td>
             </tr>
           </tbody>
@@ -317,6 +345,55 @@
           </button>
         </div>
       </div>
+
+      <!-- Rating Modal -->
+      <div
+        v-if="showRatingModal"
+        class="fixed backdrop-brightness-50 inset-0 z-100 flex items-center justify-center"
+      >
+        <div class="bg-white w-full max-w-md rounded shadow-lg p-6">
+          <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="text-lg font-semibold">
+              Rating Ticket
+            </h2>
+          </div>
+
+          <!-- Star Selector -->
+          <div class="mb-4 flex flex-col items-center justify-center text-center">
+            <p class="text-base font-medium mb-2">Nilai Rating</p>
+
+            <div class="flex space-x-1">
+              <button
+                v-for="star in 5"
+                :key="star"
+                type="button"
+                @click="tempRating = star"
+                class="text-2xl focus:outline-none"
+              >
+                <span :class="star <= tempRating ? 'text-yellow-400' : 'text-gray-300'">
+                  ★
+                </span>
+              </button>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-1">
+              {{ tempRating ? `${tempRating} dari 5` : 'Klik bintang untuk memberi nilai' }}
+            </p>
+          </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t mt-4">
+              <button type="button" @click="showRatingModal = false" class="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
+              <button
+                type="button"
+                @click="submitRating"
+                :disabled="ratingLoading"
+                class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {{ ratingLoading ? 'Saving...' : 'Submit' }}
+              </button>
+            </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -327,6 +404,7 @@ import { ref, onMounted, onUnmounted, watch, computed, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axiosInstance from '@/lib/axios'
 
+const currentUser = inject("user");
 const globalLoading = inject('globalLoading');
 const ticketTypeOptions = ['Request', 'Incident']
 const ticketStatusOptions = ['Open', 'On Progress', 'Closed', 'Cancelled']
@@ -358,12 +436,16 @@ const sortDirection = ref('asc')
 const showStatusDropdown = ref(false)
 const selectedStatuses = ref([])
 const statusDropdown = ref(null)
+const showRatingModal = ref(false)
+const selectedTicket = ref(null)
+const tempRating = ref(0)
+const ratingLoading = ref(false)
+
 let userFetchDebounce = null
 let priorityFetchDebounce = null
 let layananFetchDebounce = null
 let searchDebounce = null
 let ticketPollingInterval;
-
 
 const totalPages = computed(() => Math.ceil(total.value / perPage.value))
 
@@ -428,25 +510,31 @@ const toggleSort = (key) => {
 // })
 
 const columns = [
+  { key: 'id_ticket', label: 'No'},
   { key: 'id_ticket_type', label: 'ID Tiket' },
-  { key: 'status_overdue', label: 'Status Overdue' },
-  { key: 'due_date', label: 'Due Date' },
+//   { key: 'status_overdue', label: 'Status Overdue' },
+  { key: 'nilai_rating', label: 'Nilai Rating' },
   { key: 'ticket_title', label: 'Title' },
-  { key: 'ticket_type', label: 'Jenis Tiket' },
-  { key: 'group_layanan', label: 'Layanan' },
+  { key: 'teks_pendukung', label: 'Teks Pendukung' },
+//   { key: 'ticket_type', label: 'Jenis Tiket' },
+//   { key: 'group_layanan', label: 'Layanan' },
+  { key: 'nama_rootcause', label: 'Rootcause' },
+  { key: 'nama_solusi', label: 'Solusi' },
   { key: 'ticket_status', label: 'Status Tiket' },
-  { key: 'tingkat_priority', label: 'Prioritas (Tingkat - Dampak - Urgensi)' },
+//   { key: 'tingkat_priority', label: 'Prioritas (Tingkat - Dampak - Urgensi)' },
+  { key: 'pic_closed', label: 'PIC Closed' },
   { key: 'pic_tiket', label: 'PIC Ticket' },
   { key: 'nama_user', label: 'Nama User' },
   { key: 'nama_divisi', label: 'Divisi User' },
-  { key: 'assigned_status', label: 'Assigned Status' },
-  { key: 'assigned_date', label: 'Assigned Date' },
+//   { key: 'assigned_status', label: 'Assigned Status' },
+//   { key: 'assigned_date', label: 'Assigned Date' },
   { key: 'pic_eskalasi', label: 'PIC Eskalasi' },
-  { key: 'tanggal_eskalasi', label: 'Tanggal Eskalasi' },
-  { key: 'created_on', label: 'Created On' },
-  { key: 'created_by', label: 'Created By' },
-  { key: 'last_updated_on', label: 'Last Updated On' },
-  { key: 'last_updated_by', label: 'Last Updated By' },
+//   { key: 'tanggal_eskalasi', label: 'Tanggal Eskalasi' },
+//   { key: 'created_on', label: 'Created On' },
+//   { key: 'created_by', label: 'Created By' },
+//   { key: 'last_updated_on', label: 'Last Updated On' },
+//   { key: 'last_updated_by', label: 'Last Updated By' },
+  { key: 'due_date', label: 'Due Date' },
   { key: 'closed_date', label: 'Tanggal Close' },
 ]
 
@@ -694,6 +782,14 @@ const handleSearch = () => {
   }, 500)
 }
 
+const getStars = (nilai) => {
+  const n = Number(nilai) || 0
+  const max = 5
+  const filled = '★'.repeat(Math.min(n, max))
+  const empty = '☆'.repeat(Math.max(max - n, 0))
+  return filled + empty
+}
+
 const typeColorClass = (type) => ({
   'text-blue-600': type === 'Request',
   'text-red-600': type === 'Incident'
@@ -761,11 +857,60 @@ const goToJumpPage = () => {
   }
 }
 
+const openRatingModal = (ticket) => {
+  selectedTicket.value = ticket
+  tempRating.value = Number(ticket.nilai_rating) || 0
+  showRatingModal.value = true
+}
+
+const submitRating = async () => {
+  if (!selectedTicket.value || !tempRating.value) return
+
+  ratingLoading.value = true
+  try {
+    await axiosInstance.put(`/tickets/${selectedTicket.value.id_ticket}`, {
+      nilai_rating: tempRating.value,
+      inline_update: true,
+    })
+
+    // Refresh list so table shows updated rating
+    await fetchTickets(false)
+
+    // Close modal without separate function
+    showRatingModal.value = false
+    selectedTicket.value = null
+    tempRating.value = 0
+    ratingLoading.value = false
+
+  } catch (error) {
+    console.error('Error submitting rating:', error)
+    ratingLoading.value = false
+  }
+}
+
+
+const canRate = (ticket) => {
+    if (!currentUser.value) return false;
+
+    // Ticket must be Closed
+    if (ticket.ticket_status !== "Closed") {
+        return false;
+    }
+
+    // Already rated?
+    if (ticket.id_rating !== null && ticket.id_rating !== undefined) {
+        return false;
+    }
+
+    // Only owner can rate
+    return ticket.id_user === currentUser.value.id_user;
+};
+
 onMounted(async () => {
   await Promise.all([
-    fetchUsers(false),
-    fetchPriorities(false),
-    fetchLayanans(false),
+    fetchUsers(),
+    fetchPriorities(),
+    fetchLayanans(),
   ]);
 
   // Restore selectedStatuses from URL if exists

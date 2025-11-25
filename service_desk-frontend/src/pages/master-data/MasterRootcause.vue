@@ -367,7 +367,7 @@ const submitForm = async () => {
 
 // === Delete Rootcause ===
 const deleteRootcause = async (id) => {
-  if (!confirm('Are you sure you want to delete this rootcause?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus rootcause ini?')) return;
   
   globalLoading.value = true;
   try {

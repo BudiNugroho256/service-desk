@@ -88,9 +88,9 @@
             </thead>
             <tbody>
               <tr v-for="(permission, index) in permissions" :key="permission.id" :class="[index % 2 === 0 ? 'bg-gray-50' : 'bg-white', 'hover:bg-gray-100']">
-                <td class="px-4 py-3 border border-gray-300">{{ (page - 1) * perPage + index + 1 }}</td>
-                <td class="px-4 py-3 border border-gray-300">{{ permission.name }}</td>
-                <td class="px-4 py-3 border border-gray-300 space-x-1">
+                <td class="px-4 py-3 border border-gray-300 truncate">{{ (page - 1) * perPage + index + 1 }}</td>
+                <td class="px-4 py-3 border border-gray-300 truncate">{{ permission.name }}</td>
+                <td class="px-4 py-3 border border-gray-300 space-x-1 w-36">
                   <button @click="openEdit(permission)" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">Edit</button>
                   <button @click="deletePermission(permission.id)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">Delete</button>
                 </td>
@@ -133,14 +133,14 @@
         <div class="bg-white w-full max-w-lg max-h-[90vh] rounded shadow-lg p-6 overflow-y-auto">
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-semibold">
-              {{ modalMode === 'edit' ? 'Edit Permission' : 'Create Permission' }}
+              {{ modalMode === 'edit' ? 'Edit Permission' : 'Tambah Permission' }}
             </h2>
             <button @click="showModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
           </div>
 
           <form @submit.prevent="submitForm" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Permission Name</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nama Permission</label>
               <input v-model="form.name" type="text"
                 class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
               />
@@ -249,7 +249,7 @@ const submitForm = async () => {
 };
 
 const deletePermission = async (id) => {
-  if (!confirm('Are you sure you want to delete this permission?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus permission ini?')) return;
 
   globalLoading.value = true;
   try {

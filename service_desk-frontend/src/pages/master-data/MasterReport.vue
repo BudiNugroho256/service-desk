@@ -400,7 +400,7 @@ const submitForm = async () => {
 
 // === Delete Report ===
 const deleteReport = async (id) => {
-  if (!confirm('Are you sure you want to delete this report?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus report ini?')) return;
   
   globalLoading.value = true;
   try {

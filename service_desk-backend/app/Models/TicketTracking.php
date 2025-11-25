@@ -24,7 +24,6 @@ class TicketTracking extends Model
         'comment_created_on',
         'user_comment',
         'cancel_comment',
-        'solusi_comment',
     ];
 
     protected $casts = [

@@ -8,7 +8,6 @@ use App\Mail\Traits\ThreadableMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class TicketEskalasiUpdate extends Mailable
 {
@@ -21,14 +20,7 @@ class TicketEskalasiUpdate extends Mailable
 
     public function __construct(Ticket $ticket, string $systemComment, ?string $picComment = null, int $idTicketTracking)
     {
-        $this->ticket = Ticket::with('escalationTo')->find($ticket->id_ticket); // safest
-
-        Log::info('TicketEskalasiUpdate: Ticket loaded', [
-            'id_ticket' => $this->ticket->id_ticket,
-            'escalation_to' => $this->ticket->escalation_to,
-            'pic_eskalasi' => optional($this->ticket->escalationTo)->nama_user,
-        ]);
-
+        $this->ticket = $ticket;
         $this->systemComment = $systemComment;
         $this->picComment = $picComment;
         $this->idTicketTracking = $idTicketTracking;
@@ -36,79 +28,108 @@ class TicketEskalasiUpdate extends Mailable
 
     public function build()
     {
-        $userName = $this->ticket->endUser?->nama_user ?? 'User';
-        $layanan = $this->ticket->layanan
-            ? "{$this->ticket->layanan->group_layanan} - {$this->ticket->layanan->nama_layanan}"
+        $ticket = $this->ticket;
+        $userName = $ticket->endUser?->nama_user ?? 'User';
+
+        // ------------------------------------------------
+        // 🔵 Basic Fields for Layanan, Prioritas, etc.
+        // ------------------------------------------------
+        $layanan = $ticket->layanan
+            ? "{$ticket->layanan->group_layanan} - {$ticket->layanan->nama_layanan}"
             : 'Belum Ada';
 
-        $prioritas = $this->ticket->priority
-            ? "{$this->ticket->priority->tingkat_priority} (Dampak: {$this->ticket->priority->tingkat_dampak}, Urgensi: {$this->ticket->priority->tingkat_urgensi})"
+        $prioritas = $ticket->priority
+            ? "{$ticket->priority->tingkat_priority} (Dampak: {$ticket->priority->tingkat_dampak}, Urgensi: {$ticket->priority->tingkat_urgensi})"
             : 'Belum Ada';
 
-        $permintaan = '';
-        if (!empty($this->ticket->request?->nama_permintaan)) {
-            $permintaan = "<li><strong>Permintaan:</strong> {$this->ticket->request->nama_permintaan}</li>";
-        }
+        $picTiket = $ticket->pic?->nama_user ?? 'Belum Ada';
 
-        $picTiket = $this->ticket->pic?->nama_user ?? 'Belum Ada';
-        $picEskalasi = $this->ticket->escalationTo?->nama_user ?? 'Belum Ada';
+        // ------------------------------------------------
+        // 🔵 SLA calculation including Vendor SLA
+        // ------------------------------------------------
+        $normalSla = $ticket->priority?->sla_duration_normal ?? 0;
+        $internalSla = $ticket->escalation_to ? ($ticket->priority?->sla_duration_escalation ?? 0) : 0;
+        $vendorSla = $ticket->id_eskalasi_pihak_ketiga ? ($ticket->eskalasiPihakKetiga?->tp_sla_duration ?? 0) : 0;
 
-        $priorityDays = $this->ticket->priority
-            ? ($this->ticket->escalation_to ? $this->ticket->priority->sla_duration_escalation : $this->ticket->priority->sla_duration_normal)
-            : 0;
+        $totalSla = $normalSla + $internalSla + $vendorSla;
 
-        $dueDate = $this->ticket->progress_date
+        $dueDate = $ticket->progress_date
             ? (new TicketController)->calculateDueDateSkippingHolidays(
-                $this->ticket->progress_date,
-                $priorityDays
+                $ticket->progress_date,
+                $totalSla
             )
             : null;
 
         $dueDateFormatted = $dueDate ? $dueDate->format('Y-m-d H:i') : 'Tidak tersedia';
-        $analisisAwal = $this->ticket->rootcause_awal ?? 'Belum Diisi';
 
-        $body = "
-            <h2>📤 Tiket Dialihkan ke PIC Eskalasi - {$this->ticket->id_ticket_type}</h2>
-            <p>Halo <strong>{$userName}</strong>,</p>
-            <p>
-                Tiket Anda sedang diproses oleh <strong>{$picEskalasi}</strong> setelah dialihkan dari <strong>{$picTiket}</strong>.
-            </p>
-        ";
+        // ------------------------------------------------
+        // 🔵 BUILD ESCALATION MESSAGE (INTERNAL or THIRD PARTY)
+        // ------------------------------------------------
+        if ($ticket->id_eskalasi_pihak_ketiga) {
 
-        if (!empty($analisisAwal)) {
-            $body .= "
-                <p><strong>Analisis Awal:</strong></p>
-                <div style='border:1px solid #ccc;padding:10px;margin-bottom:20px;'>
-                    {$analisisAwal}
-                </div>
+            // ⭐ THIRD-PARTY ESCALATION
+            $vendor = $ticket->eskalasiPihakKetiga;
+            $vendorPic = $vendor->tp_pic_ticket ?? '-';
+            $vendorCompany = $vendor->pihakKetiga->nama_perusahaan ?? '-';
+            $vendorDesc = $vendor->tp_problem_description ?? '-';
+
+            $escalationMessage = "
+                <p>
+                    Tiket Anda telah <strong>dilanjutkan ke Pihak Ketiga</strong> untuk penanganan lebih lanjut.
+                </p>
+
+                <ul>
+                    <li><strong>PIC Vendor:</strong> {$vendorPic}</li>
+                    <li><strong>Perusahaan Vendor:</strong> {$vendorCompany}</li>
+                    <li><strong>Catatan untuk Vendor:</strong> {$vendorDesc}</li>
+                </ul>
+            ";
+
+        } else {
+
+            // ⭐ INTERNAL ESCALATION
+            $internalTarget = $ticket->escalationTo?->nama_user ?? 'Belum Ada';
+
+            $escalationMessage = "
+                <p>
+                    Tiket Anda telah dialihkan dari <strong>{$picTiket}</strong><br>
+                    ke <strong>{$internalTarget}</strong> untuk penanganan lebih lanjut.
+                </p>
             ";
         }
 
-        $body .= "
-            <p><strong>Judul:</strong> {$this->ticket->ticket_title}</p>
+        // ------------------------------------------------
+        // 🔵 FINAL EMAIL BODY
+        // ------------------------------------------------
+        $body = "
+            <h2>📤 Tiket Dialihkan - {$ticket->id_ticket_type}</h2>
+
+            <p>Halo <strong>{$userName}</strong>,</p>
+
+            {$escalationMessage}
+
+            <p><strong>Judul:</strong> {$ticket->ticket_title}</p>
 
             <p><strong>Deskripsi Tiket:</strong></p>
-            <div style='border:1px solid #ccc;padding:10px;margin-bottom:20px;'>{$this->ticket->ticket_description}</div>
+            <div style='border:1px solid #ccc;padding:10px;margin-bottom:20px;'>{$ticket->ticket_description}</div>
 
-            <p>Dengan detail tiket sebagai berikut:</p>
+            <p><strong>Detail tiket:</strong></p>
             <ul>
-                <li><strong>ID Tiket:</strong> {$this->ticket->id_ticket_type}</li>
-                <li><strong>Status:</strong> {$this->ticket->ticket_status}</li>
+                <li><strong>ID Tiket:</strong> {$ticket->id_ticket_type}</li>
+                <li><strong>Status:</strong> {$ticket->ticket_status}</li>
                 <li><strong>Layanan:</strong> {$layanan}</li>
                 <li><strong>Prioritas:</strong> {$prioritas}</li>
-                {$permintaan}
-                <li><strong>PIC Tiket:</strong> {$picTiket}</li>
-                <li><strong>PIC Eskalasi:</strong> {$picEskalasi}</li>
-                <li><strong>Perkiraan Selesai:</strong> {$dueDateFormatted}</li>
+                <li><strong>PIC Awal:</strong> {$picTiket}</li>
                 <li><strong>Tracking Point:</strong> {$this->systemComment}</li>
+                <li><strong>Perkiraan Selesai (SLA Total {$totalSla} hari):</strong> {$dueDateFormatted}</li>
             </ul>
 
             <hr>
-            <p>Diproses mulai: " . now()->format('Y-m-d H:i') . "</p>
+            <p>Pesan ini dikirim pada: " . now()->format('Y-m-d H:i') . "</p>
             <p>Terima kasih,<br>Service Desk System</p>
         ";
 
-        return $this->subject("Re: [Ticket #{$this->ticket->id_ticket}] {$this->ticket->ticket_title}")
+        return $this->subject("Re: [Ticket #{$ticket->id_ticket}] {$ticket->ticket_title}")
             ->html($body)
             ->withSymfonyMessage(function ($message) {
                 $this->applyThreadHeaders($message, $this->ticket->id_ticket, false, 'eskalasi');

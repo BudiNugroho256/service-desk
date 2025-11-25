@@ -21,12 +21,15 @@ class Ticket extends Model
         'id_solusi',
         'id_rootcause',
         'id_permintaan',
+        'id_rating',
+        'id_eskalasi_pihak_ketiga',
         'created_on',
         'created_by',
         'last_updated_on',
         'last_updated_by',
         'escalation_date',
         'escalation_to',
+        'ticket_closed_by',
         'ticket_status',
         'assigned_status',
         'assigned_date',
@@ -40,13 +43,7 @@ class Ticket extends Model
         'resolusi_description',
         'rootcause_awal',
         'solusi_awal',
-        'tp_pic_ticket',
-        'tp_pic_company',
-        'tp_accepted_date',
-        'tp_sla_duration',
-        'tp_rootcause',
-        'tp_solusi',
-        'tp_closed_date',
+        'teks_pendukung',
         'link_pendukung',
         'screenshot_pendukung',
         'teknisi_tambahan',
@@ -124,6 +121,12 @@ class Ticket extends Model
         
     }
 
+    public function closedBy(){
+
+        return $this->belongsTo(User::class, 'ticket_closed_by');
+        
+    }
+
     public function ticketTrackings()
     {
         return $this->hasMany(TicketTracking::class, 'id_ticket');
@@ -132,6 +135,16 @@ class Ticket extends Model
     public function ticketLogs()
     {
         return $this->hasMany(TicketLog::class, 'id_ticket');
+    }
+
+    public function rating()
+    {
+        return $this->belongsTo(Rating::class, 'id_rating', 'id_rating');
+    }
+
+    public function eskalasiPihakKetiga()
+    {
+        return $this->belongsTo(EskalasiPihakKetiga::class, 'id_eskalasi_pihak_ketiga', 'id_eskalasi_pihak_ketiga');
     }
 
 }

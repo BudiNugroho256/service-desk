@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\TicketPriority;
+use App\Models\Rating;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Faker\Factory as Faker;
@@ -40,17 +41,23 @@ class TicketSeeder extends Seeder
         return $date;
     }
 
-
     public function run(): void
     {
         $faker = Faker::create();
         $adminIds = User::role('Admin')->pluck('id_user')->toArray();
         $petugasItIds = User::role('Petugas IT')->pluck('id_user')->toArray();
         $allUserIds = User::pluck('id_user')->toArray();
+        $ratingIds = Rating::pluck('id_rating')->toArray();
 
         // Early return if role users are missing
         if (empty($adminIds) || empty($petugasItIds)) {
             $this->command->warn("⚠️ Skipping TicketSeeder: No Admin or Petugas IT users found.");
+            return;
+        }
+
+        // Early return if no ratings
+        if (empty($ratingIds)) {
+            $this->command->warn("⚠️ Skipping TicketSeeder: No ratings found. Run RatingSeeder first.");
             return;
         }
 
@@ -66,7 +73,11 @@ class TicketSeeder extends Seeder
             $creator = $faker->randomElement($allUserIds);        // Any user
             $updater = $faker->randomElement($allUserIds);        // Any user
             $escalator = $faker->optional()->randomElement($petugasItIds);
-
+            if ($escalator) {
+                $picClosed = $faker->randomElement([$escalator, $picUser]);
+            } else {
+                $picClosed = $picUser;
+            }
 
             // Pick priority and related SLA
             $priorityId = $faker->numberBetween(1, 5);
@@ -99,8 +110,6 @@ class TicketSeeder extends Seeder
             ) : null;
             $closedDate = $closedDate ? Carbon::parse($closedDate) : null;
 
-
-
             $totalSla = $priority?->sla_duration_normal + ($escalator ? $priority?->sla_duration_escalation : 0);
             $dueDate = ($progressDate && $totalSla)
                 ? $this->calculateDueDateSkippingHolidays($progressDate, $totalSla)
@@ -116,12 +125,16 @@ class TicketSeeder extends Seeder
                 'id_rootcause' => $faker->numberBetween(1, 5),
                 'id_permintaan' => $faker->numberBetween(1, 5),
 
+                // ⭐ New: random rating 1–5
+                'id_rating' => $faker->randomElement($ratingIds),
+
                 'created_on' => $createdOn,
                 'created_by' => $creator,
                 'last_updated_on' => $faker->dateTimeBetween($createdOn, 'now'),
                 'last_updated_by' => $updater,
                 'escalation_date' => $faker->optional()->dateTimeBetween($createdOn, 'now'),
                 'escalation_to' => $escalator,
+                'ticket_closed_by' => $picClosed,
 
                 'ticket_status' => $closedDate ? 'Closed' : $faker->randomElement(['Open', 'On Progress', 'Cancelled']),
                 'assigned_status' => $assignedDate ? 'Assigned' : 'Unassigned',
@@ -140,15 +153,6 @@ class TicketSeeder extends Seeder
                 'rootcause_awal' => $faker->sentence(3),
                 'solusi_awal' => $faker->sentence(3),
 
-                // TP (temporary PIC) fields – linked to ticket info
-                'tp_pic_ticket' => $faker->name,
-                'tp_pic_company' => $faker->company,
-                'tp_accepted_date' => $acceptedDate,
-                'tp_sla_duration' => $priority?->sla_duration_normal ?? $faker->numberBetween(24, 72),
-                'tp_rootcause' => $faker->sentence(4),
-                'tp_solusi' => $faker->sentence(4),
-                'tp_closed_date' => $closedDate,
-
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -160,7 +164,6 @@ class TicketSeeder extends Seeder
         $year = now()->year;
         $prefix = $type === 'Request' ? 'REQ' : 'INC';
 
-        // Match any ticket from both types for the year and extract the number part safely
         $lastNumber = Ticket::where(function ($query) use ($year) {
                 $query->where('id_ticket_type', 'like', "REQ{$year}%")
                     ->orWhere('id_ticket_type', 'like', "INC{$year}%");
@@ -175,6 +178,4 @@ class TicketSeeder extends Seeder
 
         return $prefix . $year . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
-
-
 }

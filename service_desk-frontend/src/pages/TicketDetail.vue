@@ -64,7 +64,7 @@
         <!-- Tindak Lanjut -->
         <div class="px-6 pb-6">
           <h3 class="text-sm font-semibold text-gray-800 mb-2">Tindak Lanjut</h3>
-          <div class="flex flex-wrap gap-26">
+          <div class="flex flex-wrap gap-12">
             <button
               @click="openLogModal"
               class="bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm px-4 py-2 rounded"
@@ -108,18 +108,23 @@
             >
               Resolusi
             </button> -->
-            <!-- <button
+            <button
               @click="openPihakKetigaModal"
-              :disabled="!!ticket.pic_eskalasi"
+              :disabled="
+                !ticket.pic_eskalasi ||
+                !!ticket.id_eskalasi_pihak_ketiga ||
+                ['Open', 'Closed', 'Cancelled'].includes(ticket.ticket_status)
+              "
               :class="[
                 'font-medium text-sm px-4 py-2 rounded',
-                ticket.pic_eskalasi
+                (!ticket.pic_eskalasi || !!ticket.id_eskalasi_pihak_ketiga || ['Open', 'Closed', 'Cancelled'].includes(ticket.ticket_status))
                   ? 'bg-gray-500 text-white'
                   : 'bg-blue-500 hover:bg-blue-600 text-white'
               ]"
             >
               Pihak Ketiga
-            </button> -->
+            </button>
+
 
             <!-- <button class="bg-gray-700 hover:bg-gray-800 text-white font-medium text-sm px-4 py-2 rounded">
               Resolusi
@@ -286,7 +291,7 @@
 
       <!-- Update Ticket Modal -->
       <div v-if="showUpdateModal" class="fixed backdrop-brightness-50 inset-0 z-100 flex items-center justify-center">
-        <div class="bg-white w-full max-w-xl rounded shadow-lg p-6 relative">
+        <div class="bg-white w-112 max-w-xl rounded shadow-lg p-6 relative">
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-semibold">Update Ticket</h2>
             <button @click="showUpdateModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
@@ -384,7 +389,7 @@
 
       <!--  Eskalasi Modal -->
       <div v-if="showEskalasiModal" class="fixed backdrop-brightness-50 inset-0 z-100 flex items-center justify-center">
-        <div class="bg-white w-full max-w-xl rounded shadow-lg p-6 relative">
+        <div class="bg-white w-112 max-w-xl rounded shadow-lg p-6 relative">
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-semibold">Eskalasi Ticket</h2>
             <button @click="showEskalasiModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
@@ -474,7 +479,7 @@
 
       <!-- Resolusi Modal -->
       <div v-if="showResolusiModal" class="fixed backdrop-brightness-50 inset-0 z-100 flex items-center justify-center">
-        <div class="bg-white w-full max-w-2xl rounded shadow-lg p-6 relative">
+        <div class="bg-white w-120 max-w-2xl rounded shadow-lg p-6 relative">
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-semibold">Resolusi Ticket</h2>
             <button @click="showResolusiModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
@@ -565,7 +570,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Catatan Resolusi</label>
               <textarea
-                v-model="resolusiForm.solusi_comment"
+                v-model="resolusiForm.teks_pendukung"
                 rows="3"
                 class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
                 placeholder="Tulis catatan solusi... (Opsional)"
@@ -948,7 +953,73 @@
         </div>
       </div>
 
+      <!-- Pihak Ketiga Modal -->
+      <div v-if="showPihakKetigaModal" class="fixed backdrop-brightness-50 inset-0 z-120 flex items-center justify-center">
+        <div class="bg-white w-112 max-w-xl rounded shadow-lg p-6 relative">
+          
+          <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="text-lg font-semibold">Eskalasi Pihak Ketiga</h2>
+            <button @click="showPihakKetigaModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
+          </div>
 
+          <form @submit.prevent="submitPihakKetigaForm" class="space-y-4 text-sm">
+
+            <!-- Nama Perusahaan -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nama Perusahaan</label>
+              <div class="w-fit border border-gray-300 px-3 py-2 rounded">
+                <Multiselect
+                  v-model="pihakKetigaForm.id_pihak_ketiga"
+                  :options="pihakKetigaList"
+                  :track-by="'id_pihak_ketiga'"
+                  label="nama_perusahaan"
+                  :searchable="true"
+                  :close-on-select="true"
+                  placeholder="Pilih Pihak Ketiga"
+                  class="text-sm"
+                />
+              </div>
+            </div>
+
+            <!-- PIC Pihak Ketiga -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">PIC Pihak Ketiga</label>
+              <input 
+                v-model="pihakKetigaForm.tp_pic_ticket" 
+                type="text" 
+                class="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300" 
+                placeholder="Masukkan PIC Perusahaan"/>
+            </div>
+
+            <!-- Deskripsi Masalah -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Masalah</label>
+              <textarea 
+                v-model="pihakKetigaForm.tp_problem_description" 
+                rows="3"
+                class="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300"
+                placeholder="Masalah yang diberikan ke pihak ketiga..."></textarea>
+            </div>
+
+            <!-- Estimasi Durasi Penyelesaian -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Estimasi Durasi Penyelesaian (Hari)</label>
+              <input 
+                v-model="pihakKetigaForm.tp_sla_duration" 
+                type="number" 
+                min="0"
+                class="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300"
+                placeholder="Contoh: 3"/>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-4 border-t">
+              <button type="button" @click="showPihakKetigaModal = false" class="px-4 py-2 border rounded hover:bg-gray-50">Batal</button>
+              <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Submit</button>
+            </div>
+
+          </form>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -988,7 +1059,8 @@ const lineHeights = ref({});
 const expandedRefs = ref({});
 const currentImageIndex = ref(0);
 const permintaanOptions = ref([]);
-
+const showPihakKetigaModal = ref(false)
+const pihakKetigaList = ref([])
 
 const props = defineProps({
   ticket: Object
@@ -1010,11 +1082,18 @@ const resolusiForm = ref({
   // ticket_status: 'Closed',
   id_rootcause: null,
   id_solusi: null,
-  solusi_comment: null,
+  teks_pendukung: null,
   teknisi_tambahan: [],
   link_pendukung: '',
   screenshot_pendukung: null,
 });
+
+const pihakKetigaForm = ref({
+  id_pihak_ketiga: null,
+  tp_pic_ticket: "",
+  tp_problem_description: "",
+  tp_sla_duration: ""
+})
 
 const newRootcauseForm = ref({
   id_layanan: null,
@@ -1348,7 +1427,7 @@ const submitResolusiForm = async () => {
       ticket_status: 'Closed',
       id_rootcause: resolusiForm.value.id_rootcause?.id_rootcause || null,
       id_solusi: resolusiForm.value.id_solusi?.id_solusi || null,
-      solusi_comment: resolusiForm.value.solusi_comment || null,
+      teks_pendukung: resolusiForm.value.teks_pendukung || null,
       link_pendukung: resolusiForm.value.link_pendukung || '',
       screenshot_pendukung: resolusiForm.value.screenshot_pendukung || null,
       teknisi_tambahan: resolusiForm.value.teknisi_tambahan.map(user => user.nama_user),
@@ -1409,25 +1488,28 @@ const submitSolusiForm = async () => {
   }
 };
 
-
 const submitPICComment = async (index) => {
   const comment = commentDrafts.value[index];
   if (!comment) return;
 
   globalLoading.value = true;
   try {
-    await axiosInstance.post(
+    const res = await axiosInstance.post(
       `/tickets/${ticket.value.id_ticket}/tracking/${trackingPoints.value[index].id_ticket_tracking}/comment`,
       { pic_comment: comment }
     );
 
-    trackingPoints.value[index].comment_logs.push({
+    // use the real log (with author) returned by backend
+    const newLog = res.data?.new_comment ?? {
+      // fallback if backend not updated yet
       id_tracking_comment: Date.now(),
       comment_text: comment,
-      created_by: ticket.value.pic_tiket || 'Anda',
-      comment_created_on: new Date().toLocaleString('sv-SE', { hour12: false }).replace(/\u202F/g, ' '),
       comment_type: 'pic',
-    });
+      created_by: ticket.value.pic_tiket || 'Anda',
+      comment_created_on: new Date().toLocaleString('sv-SE', { hour12: false }).replace(/\u202F/g, ' ')
+    };
+
+    trackingPoints.value[index].comment_logs.push(newLog);
 
     commentDrafts.value[index] = '';
 
@@ -1460,6 +1542,56 @@ const submitCancelTicket = async () => {
   } catch (error) {
     console.error('❌ Error cancelling ticket:', error);
     alert('Gagal melakukan pembatalan.');
+  } finally {
+    globalLoading.value = false;
+  }
+};
+
+const openPihakKetigaModal = async () => {
+  await fetchPihakKetiga()
+  showPihakKetigaModal.value = true
+}
+
+const fetchPihakKetiga = async () => {
+  console.log("fetchPihakKetiga() triggered");
+  globalLoading.value = true;
+  try {
+    const { data } = await axiosInstance.get('/tickets/pihak-ketiga-list')
+    console.log("Pihak ketiga response:", data);
+    console.log("Parsed list:", data?.data);
+
+    pihakKetigaList.value = data.data || [];
+  } catch (err) {
+    console.error("❌ Failed to load pihak ketiga:", err);
+  } finally {
+    globalLoading.value = false;
+  }
+};
+
+
+const submitPihakKetigaForm = async () => {
+  globalLoading.value = true;
+
+  try {
+    await axiosInstance.post(`/tickets/${effectiveTicketId.value}/assign-pihak-ketiga`, {
+      id_pihak_ketiga: pihakKetigaForm.value.id_pihak_ketiga?.id_pihak_ketiga,
+      tp_pic_ticket: pihakKetigaForm.value.tp_pic_ticket,
+      tp_problem_description: pihakKetigaForm.value.tp_problem_description,
+      tp_sla_duration: pihakKetigaForm.value.tp_sla_duration
+    });
+
+    showPihakKetigaModal.value = false;
+
+    // Reload ticket
+    const { data } = await axiosInstance.get(`/tickets/${ticket.value.id_ticket}`);
+    ticket.value = data;
+
+    // 🔥 Console log setelah submit dan refresh tiket
+    console.log("🔥 id_eskalasi_pihak_ketiga setelah submit:", data.id_eskalasi_pihak_ketiga);
+    console.log("🔥 Full Ticket Data:", data);
+
+  } catch (err) {
+    console.error("❌ Failed to assign pihak ketiga:", err);
   } finally {
     globalLoading.value = false;
   }
@@ -1585,6 +1717,8 @@ const shouldRenderLine = (index) => {
   );
 };
 
+
+
 // 🟦 Init
 onMounted(async () => {
   globalLoading.value = true;
@@ -1666,21 +1800,24 @@ watch(trackingPoints, async () => {
 
 watch(
   () => [updateForm.value.ticket_type, updateForm.value.id_layanan],
-  async ([type, layanan], [prevType, prevLayanan]) => {
+  async (newVals, oldVals) => {
+    const [type, layanan] = newVals
+    const [prevType, prevLayanan] = oldVals ?? []
+
     if (type === 'Request' && layanan?.id_layanan) {
+      // reset permintaan if layanan changed or first run
       if (!prevLayanan || layanan.id_layanan !== prevLayanan.id_layanan) {
-        updateForm.value.id_permintaan = null;
+        updateForm.value.id_permintaan = null
       }
-      await fetchPermintaan(layanan.id_layanan);
+      await fetchPermintaan(layanan.id_layanan)
     } else {
-      permintaanOptions.value = [];
-      updateForm.value.id_permintaan = null;
+      // not a Request or no layanan chosen
+      permintaanOptions.value = []
+      updateForm.value.id_permintaan = null
     }
   },
   { immediate: true }
-);
-
-
+)
 </script>
 
 <style scoped>

@@ -9,17 +9,61 @@ use App\Models\TicketTrackingCommentLog;
 use App\Notifications\TicketNotification;
 use App\Mail\TicketCreatedNotification;
 use App\Mail\InvalidSubjectNotification;
+use App\Mail\ReplyIgnoredNotification;
+use App\Mail\UnratedTicketNotification;
+use App\Mail\TicketStillOpenNotification;
+use App\Mail\TicketAfterHoursNotification;
 use EmailReplyParser\EmailReplyParser;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use HTMLPurifier;
 use HTMLPurifier_Config;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Role;
 
 class EmailProcessorService
 {
     protected $ticketPurifier;
+
+    public function calculateDueDateSkippingHolidays(string $startDate, int $workingDays): ?\Carbon\Carbon
+    {
+        $path = storage_path('app/calendar.min.json');
+
+
+        if (!file_exists($path)) {
+            return null;
+        }
+
+        $json = file_get_contents($path);
+        $holidays = json_decode($json, true);
+
+        $date = \Carbon\Carbon::parse($startDate);
+        $addedDays = 0;
+
+        while ($addedDays < $workingDays) {
+            $date->addDay();
+
+            $isWeekend = $date->isWeekend(); // Saturday or Sunday
+            $isHoliday = isset($holidays[$date->format('Y-m-d')]) && ($holidays[$date->format('Y-m-d')]['holiday'] ?? false);
+
+            if (!$isWeekend && !$isHoliday) {
+                $addedDays++;
+            }
+        }
+
+        return $date;
+    }
+    
+    public function getNextWorkingDayAt0800(): \Carbon\Carbon
+    {
+        $today = now()->format('Y-m-d');
+
+        // Add 1 working day to today (SLA will skip weekends/holidays itself)
+        $nextWorkingDate = $this->calculateDueDateSkippingHolidays($today, 1);
+
+        return $nextWorkingDate->setTime(8, 0, 0);
+    }
 
     public function logTrackingComment($trackingId, $type, $text, $userId = null, $createdOn = null)
     {
@@ -65,14 +109,10 @@ class EmailProcessorService
 
 
             if ($ticket) {
-                // ✅ Check if status is Closed or Cancelled
-                // if (in_array($ticket->ticket_status, ['Closed', 'Cancelled'])) {
-                //     return "⚠ Ticket #{$ticket->id_ticket} is '{$ticket->ticket_status}' — reply ignored.";
-                // }
 
                 // Extract the DateTime object from the Attribute
                 $emailDateAttribute = $message->getDate();
-                $sentAt = $emailDateAttribute ? \Carbon\Carbon::parse($emailDateAttribute->get())->timezone(config('app.timezone')) : now();
+                $sentAt = $emailDateAttribute ? Carbon::parse($emailDateAttribute->get())->timezone(config('app.timezone')) : now();
 
 
                 // Add this check
@@ -82,6 +122,27 @@ class EmailProcessorService
                     ->first();
 
                 if ($closedTracking && $sentAt->greaterThan($closedTracking->tracking_created_on)) {
+                    $ticket->load('endUser');
+                    $namaUser = $ticket->endUser?->nama_user ?? collect(explode('.', explode('@', $emailFrom)[0]))
+                                    ->map(fn($p) => Str::ucfirst($p))->join(' ');
+
+                    // Kirim email ke pengirim
+                    Mail::to($emailFrom)->send(new ReplyIgnoredNotification(
+                        senderName: $namaUser,
+                        ticketId: $ticket->id_ticket,
+                        status: $closedTracking->tracking_status,
+                        closedAt: $closedTracking->tracking_created_on->format('Y-m-d H:i:s')
+                    ));
+
+                    // (Opsional) log komentar sistem agar ada jejak di TicketTrackingCommentLog
+                    $this->logTrackingComment(
+                        trackingId: $closedTracking->id_ticket_tracking,
+                        type: 'system',
+                        text: "Balasan via email dari {$emailFrom} pada {$sentAt->format('Y-m-d H:i:s')} diabaikan karena tiket {$closedTracking->tracking_status}.",
+                        userId: null,
+                        createdOn: now()
+                    );
+
                     Log::warning('Reply ignored because ticket was closed/cancelled before email was sent.', [
                         'ticket_id' => $ticket->id_ticket,
                         'ticket_status' => $ticket->ticket_status,
@@ -89,7 +150,7 @@ class EmailProcessorService
                         'closed_at' => $closedTracking->tracking_created_on,
                     ]);
 
-                    return "⚠ Ticket #{$ticket->id_ticket} was '{$closedTracking->tracking_status}' at {$closedTracking->tracking_created_on->format('Y-m-d H:i:s')} — reply ignored.";
+                    return "⚠ Ticket #{$ticket->id_ticket} was '{$closedTracking->tracking_status}' at {$closedTracking->tracking_created_on->format('Y-m-d H:i:s')} — reply ignored and notice emailed to sender.";
                 }
 
 
@@ -119,7 +180,7 @@ class EmailProcessorService
                 }
 
 
-                // ✅ THIS IS MISSING IN YOUR CODE
+                // Clean text
                 $plainTextBody = $message->getTextBody() ?: strip_tags($message->getHTMLBody());
                 $replyOnlyText = EmailReplyParser::parseReply($plainTextBody);
                 $cleanedReplyBody = $this->ticketPurifier->purify($replyOnlyText);
@@ -176,6 +237,49 @@ class EmailProcessorService
             return "⚠ Ticket ID not found in database: {$idTicket}";
         }
 
+        // Check for unrated latest ticket
+        // $user = User::where('email', $emailFrom)->first();
+
+        // if ($user) {
+        //     $latestTicket = Ticket::where('id_end_user', $user->id_user)
+        //         ->latest('created_on')
+        //         ->first();
+
+        //     if ($latestTicket && $latestTicket->id_rating === null) {
+
+        //         $rawName = explode('@', $emailFrom)[0];
+        //         $formattedName = collect(explode('.', $rawName))
+        //                             ->map(fn($part) => Str::ucfirst($part))
+        //                             ->join(' ');
+
+        //         // Case 1: Ticket is CLOSED but unrated → send UnratedTicketNotification
+        //         if ($latestTicket->ticket_status === 'Closed') {
+
+        //             Mail::to($emailFrom)->send(
+        //                 new UnratedTicketNotification(
+        //                     $formattedName,
+        //                     $latestTicket->id_ticket
+        //                 )
+        //             );
+
+        //             return "⛔ User must rate previous closed ticket (#{$latestTicket->id_ticket}) — new ticket blocked.";
+        //         }
+
+        //         // Case 2: Ticket NOT closed → send 'TicketStillOpenNotification'
+        //         if (in_array($latestTicket->ticket_status, ['Open', 'On Progress'])) {
+
+        //             Mail::to($emailFrom)->send(
+        //                 new TicketStillOpenNotification(
+        //                     $formattedName,
+        //                     $latestTicket->id_ticket,
+        //                     $latestTicket->ticket_status
+        //                 )
+        //             );
+
+        //             return "⛔ Latest ticket (#{$latestTicket->id_ticket}) is still '{$latestTicket->ticket_status}' — new ticket blocked.";
+        //         }
+        //     }
+        // }
 
 
         // Check subject starts with 'Open Ticket - '
@@ -207,7 +311,36 @@ class EmailProcessorService
             ]
         );
 
-        $user->syncRoles('End User');
+        // Assign role only if user has no roles at all
+        if ($user->roles->isEmpty()) {
+            $user->assignRole('End User');
+        }
+
+        // =============================
+        // Working Hours + SLA (CORRECT)
+        // =============================
+
+        $now = now();
+        $start = today()->setTime(8, 0, 0);
+        $end = today()->setTime(17, 0, 0);
+
+        $isAfterHours = false;
+        $processingAt = $now; // default: process immediately
+
+        if ($now->lt($start)) {
+            // Before 08:00 → SLA says: today at 08:00
+            $isAfterHours = true;
+            $processingAt = $start;
+
+        } elseif ($now->gt($end)) {
+            // After 17:00 → SLA says: next working day at 08:00
+            $isAfterHours = true;
+            $processingAt = $this->getNextWorkingDayAt0800();
+        }
+
+
+        // IMPORTANT: ticket creation time MUST NOT change
+        $createdAt = $now;
 
         // Create ticket
         $ticket = Ticket::create([
@@ -219,9 +352,16 @@ class EmailProcessorService
             'ticket_description' => 'TEMP_PLACEHOLDER',
             'ticket_status' => 'Open',
             'assigned_status' => 'Unassigned',
-            'created_on' => now(),
-            'last_updated_on' => now(),
+            'created_on' => $createdAt,
+            'last_updated_on' => $createdAt,
+            'escalation_date' => null,
+            'escalation_to' => null,
         ]);
+        
+        if ($isAfterHours) {
+            $scheduledDate = $processingAt->format('d M Y H:i') . ' WIB';
+            Mail::to($user->email)->send(new TicketAfterHoursNotification(senderName: $user->nama_user, ticketId: $ticket->id_ticket, scheduledDate: $scheduledDate));
+        }
 
         $systemComment = 'Tiket dibuat oleh ' . $user->nama_user;
 
@@ -307,7 +447,6 @@ class EmailProcessorService
             'ticket_description' => $cleanedBody,
             'ticket_attachments' => $attachments,
         ]);
-
 
         Mail::to($user->email)->send(new TicketCreatedNotification($ticket, $user, $systemComment, $idTicketTracking));
 

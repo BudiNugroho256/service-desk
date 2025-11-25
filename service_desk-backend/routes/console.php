@@ -4,8 +4,9 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
+// Scheduling Command
 Schedule::command('emails:fetch')
-    ->everyMinute()
+    ->everyFifteenSeconds()
     ->runInBackground()
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/email_fetch.log'));

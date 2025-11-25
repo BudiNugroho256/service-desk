@@ -160,10 +160,10 @@
 
       <!-- Modal -->
       <div v-if="showModal" class="fixed backdrop-brightness-50 inset-0 z-100 flex items-center justify-center">
-        <div class="bg-white w-full max-w-lg rounded shadow-lg p-6">
+        <div class="bg-white w-112 max-w-lg rounded shadow-lg p-6">
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-semibold">
-              {{ modalMode === 'edit' ? 'Edit User' : modalMode === 'view' ? 'View User' : 'Create User' }}
+              {{ modalMode === 'edit' ? 'Edit User' : modalMode === 'view' ? 'Show User' : 'Tambah User' }}
             </h2>
             <button @click="showModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
           </div>
@@ -439,7 +439,7 @@ const submitForm = async () => {
 
 
 const deleteUser = async (id) => {
-  if (!confirm('Are you sure you want to delete this user?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus user ini?')) return;
 
   globalLoading.value = true;
   try {

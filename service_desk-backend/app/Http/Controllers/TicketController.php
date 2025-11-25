@@ -7,10 +7,13 @@ use App\Models\User;
 use App\Models\Layanan;
 use App\Models\Solusi;
 use App\Models\Rootcause;
+use App\Models\Rating;
 use App\Models\TicketPriority;
 use App\Models\TicketLog;
 use App\Models\TicketTracking;
 use App\Models\TicketTrackingCommentLog;
+use App\Models\PihakKetiga;
+use App\Models\EskalasiPihakKetiga;
 use App\Mail\TicketTrackingStatusUpdated;
 use App\Mail\TicketClosedStatus;
 use App\Mail\TicketCancelledStatus;
@@ -36,8 +39,8 @@ class TicketController extends Controller
         $prefix = $type === 'Request' ? 'REQ' : 'INC';
 
         $lastNumber = Ticket::where(function ($query) use ($year) {
-                $query->where('id_ticket_type', 'like', "REQ{$year}%")
-                    ->orWhere('id_ticket_type', 'like', "INC{$year}%");
+                $query->where('id_ticket_type', 'ilike', "REQ{$year}%")
+                    ->orWhere('id_ticket_type', 'ilike', "INC{$year}%");
             })
             ->get()
             ->map(function ($ticket) {
@@ -49,34 +52,6 @@ class TicketController extends Controller
 
         return $prefix . $year . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
-
-    // private function calculateDueDateSkippingHolidays(string $startDate, int $workingDays): ?\Carbon\Carbon
-    // {
-    //     $url = "https://raw.githubusercontent.com/guangrei/APIHariLibur_V2/main/calendar.min.json";
-    //     $response = Http::get($url);
-
-    //     if (!$response->successful()) {
-    //         return null; // or fallback to simple addDays()
-    //     }
-
-    //     $holidays = $response->json();
-
-    //     $date = \Carbon\Carbon::parse($startDate);
-    //     $addedDays = 0;
-
-    //     while ($addedDays < $workingDays) {
-    //         $date->addDay();
-
-    //         $isWeekend = $date->isWeekend(); // Saturday or Sunday
-    //         $isHoliday = isset($holidays[$date->format('Y-m-d')]) && ($holidays[$date->format('Y-m-d')]['holiday'] ?? false);
-
-    //         if (!$isWeekend && !$isHoliday) {
-    //             $addedDays++;
-    //         }
-    //     }
-
-    //     return $date;
-    // }
 
     public function calculateDueDateSkippingHolidays(string $startDate, int $workingDays): ?\Carbon\Carbon
     {
@@ -201,8 +176,6 @@ class TicketController extends Controller
         $tracking->comment_created_on = now();
         $tracking->save();
 
-        $this->logTrackingComment($tracking->id_ticket_tracking, 'pic', $tracking->pic_comment, auth()->id());
-
         // ✅ Send email after successful comment save
         $ticket = Ticket::with(['endUser', 'pic', 'escalationTo'])->findOrFail($ticketId);
         $recipients = array_filter([
@@ -217,69 +190,26 @@ class TicketController extends Controller
             }
         }
 
+        $newComment = $this->logTrackingComment(
+            $tracking->id_ticket_tracking,
+            'pic',
+            $tracking->pic_comment,
+            auth()->id()
+        )->load('author');
+
         return response()->json([
             'message' => 'PIC comment saved successfully.',
             'data' => $tracking,
+            'new_comment' => [
+                'id_tracking_comment' => $newComment->id_tracking_comment,
+                'comment_text'        => $newComment->comment_text,
+                'comment_type'        => $newComment->comment_type,
+                'created_by'          => $newComment->author?->nama_user ?? '-',
+                'comment_created_on'  => optional($newComment->comment_created_on)->toDateTimeString(),
+            ],
         ]);
+
     }
-
-    // public function submitCancelComment(Request $request, $ticketId, $trackingId)
-    // {
-    //     $request->validate([
-    //         'cancel_comment' => 'required|string|max:2000',
-    //     ]);
-
-    //     $tracking = TicketTracking::where('id_ticket', $ticketId)
-    //         ->where('id_ticket_tracking', $trackingId)
-    //         ->first();
-
-    //     if (!$tracking) {
-    //         return response()->json(['message' => 'Tracking point not found.'], 404);
-    //     }
-
-    //     $tracking->cancel_comment = $request->cancel_comment;
-    //     $tracking->comment_created_on = now();
-    //     $tracking->save();
-
-    //     // ✅ Send email after successful alasan pembatalan save
-    //     $ticket = Ticket::with(['endUser', 'pic', 'escalationTo'])->findOrFail($ticketId);
-    //     $recipients = array_filter([
-    //         $ticket->endUser?->email,
-    //         $ticket->pic?->email,
-    //         $ticket->escalationTo?->email,
-    //     ]);
-
-    //     foreach ($recipients as $email) {
-    //         if ($email && str_contains($email, '@')) {
-
-    //             $trackingStatus = $tracking->tracking_status;
-    //             $idTicketTracking = $tracking->id_ticket_tracking;
-    //             $systemComment = $tracking->ticket_comment;
-    //             $picComment = $tracking->pic_comment; // still keep it for consistency
-    //             $cancelComment = $tracking->cancel_comment;
-
-    //             // Only send TicketCancelledStatus for cancelled
-    //             if ($trackingStatus === 'Cancelled') {
-    //                 Mail::to($email)->send(new TicketCancelledStatus($ticket, $systemComment, $picComment, $cancelComment, $idTicketTracking));
-    //             }
-    //         }
-    //     }
-
-    //     return response()->json([
-    //         'message' => 'Alasan pembatalan saved successfully.',
-    //         'data' => $tracking,
-    //     ]);
-    // }
-
-
-
-    // private function getLatestPicComment($ticket, $trackingStatus)
-    // {
-    //     return TicketTracking::where('id_ticket', $ticket->id_ticket)
-    //         ->where('tracking_status', $trackingStatus)
-    //         ->orderByDesc('comment_created_on')
-    //         ->value('pic_comment');
-    // }
     
     public function logTrackingComment($trackingId, $type, $text, $userId = null, $createdOn = null)
     {
@@ -292,19 +222,158 @@ class TicketController extends Controller
         ]);
     }
 
+    public function getPihakKetiga()
+    {
+        return response()->json([
+            'data' => PihakKetiga::all()
+        ]);
+    }
+
+    public function assignPihakKetiga(Request $request, $ticketId)
+    {
+        $request->validate([
+            'id_pihak_ketiga' => 'required|exists:tblm_pihak_ketiga,id_pihak_ketiga',
+            'tp_pic_ticket' => 'required|string|max:255',
+            'tp_problem_description' => 'required|string',
+            'tp_sla_duration' => 'required|integer|min:0',
+        ]);
+
+        $ticket = Ticket::findOrFail($ticketId);
+
+        // Create vendor escalation entry
+        $eskalasi = EskalasiPihakKetiga::create([
+            'id_pihak_ketiga'      => $request->id_pihak_ketiga,
+            'tp_pic_ticket'        => $request->tp_pic_ticket,
+            'tp_problem_description' => $request->tp_problem_description,
+            'tp_sla_duration'      => $request->tp_sla_duration,
+        ]);
+
+        // Update ticket
+        $ticket->update([
+            'id_eskalasi_pihak_ketiga' => $eskalasi->id_eskalasi_pihak_ketiga,
+        ]);
+
+        // -------------------------
+        // ⭐ CREATE TRACKING POINT
+        // -------------------------
+        $vendor = $eskalasi;
+        $company = $vendor->pihakKetiga->nama_perusahaan;
+        $pic     = $vendor->tp_pic_ticket;
+
+        $assignedTo = $pic . ' (' . $company . ')';
+
+        $tracking = TicketTracking::create([
+            'id_ticket'           => $ticket->id_ticket,
+            'id_ticket_type'      => $ticket->id_ticket_type,
+            'id_pic_ticket'       => $ticket->id_pic_ticket,
+            'ticket_type'         => $ticket->ticket_type,
+            'tracking_status'     => 'On Progress',
+            'ticket_comment'      => 'Pengerjaan dialihkan ke ' . $assignedTo,
+            'comment_created_on'  => now(),
+            'tracking_created_on' => now(),
+        ]);
+
+
+        // ============================================================
+        // ⭐ FIXED NOTIFICATION SECTION (Admin + escalation PIC only)
+        // ============================================================
+
+        $namaUser = $ticket->endUser?->nama_user ?? '-';
+
+        // Collect all notifiable users
+        $notifiables = collect();
+
+        // Add Admins
+        $adminUsers = Role::findByName('Admin')->users;
+        $notifiables = $notifiables->merge($adminUsers);
+
+        // Add escalation PIC if exists
+        if ($ticket->escalationTo) {
+            $notifiables->push($ticket->escalationTo);
+        }
+
+        // Remove duplicates based on user id
+        $notifiables = $notifiables->unique('id_user');
+
+        // Send notifications once only
+        foreach ($notifiables as $user) {
+            $user->notify(new TicketNotification(
+                $ticket->id_ticket,
+                $tracking->id_ticket_tracking,
+                'ticket_escalation',
+                $namaUser,
+                $ticket->id_ticket_type,
+                $assignedTo
+            ));
+        }
+
+
+        // ============================================================
+        // ⭐ FIXED EMAIL SECTION (User + PIC_Eskalasi + Admin)
+        // ============================================================
+
+        $emailRecipients = collect();
+
+        // Add end user email
+        if ($ticket->endUser?->email) {
+            $emailRecipients->push($ticket->endUser->email);
+        }
+
+        // Add escalation PIC email
+        if ($ticket->escalationTo?->email) {
+            $emailRecipients->push($ticket->escalationTo->email);
+        }
+
+        // Add admin emails
+        foreach ($adminUsers as $admin) {
+            if ($admin->email) {
+                $emailRecipients->push($admin->email);
+            }
+        }
+
+        // Remove duplicates
+        $emailRecipients = $emailRecipients->unique()->filter();
+
+
+        foreach ($emailRecipients as $email) {
+            Mail::to($email)->send(
+                new TicketEskalasiUpdate(
+                    $ticket,
+                    $tracking->ticket_comment,
+                    null,
+                    $tracking->id_ticket_tracking
+                )
+            );
+        }
+
+        // -------------------------
+        // ⭐ FINAL RESPONSE
+        // -------------------------
+        return response()->json([
+            'message' => 'Pihak ketiga berhasil ditambahkan.',
+            'data'    => $eskalasi
+        ]);
+    }
+
 
     public function index(Request $request)
     {
         $query = Ticket::with([
-            'priority', 'pic', 'endUser', 'divisi', 'layanan', 'createdBy', 'lastUpdatedBy', 'escalationTo'
+            'priority', 'pic', 'endUser', 'solusi', 'rootcause', 'divisi', 'layanan', 'createdBy', 'lastUpdatedBy', 'escalationTo', 'rating', 'closedBy', 'eskalasiPihakKetiga', 'eskalasiPihakKetiga.pihakKetiga'
         ]);
 
         $user = Auth::user();
 
         if ($user->hasRole('Petugas IT')) {
             $query->where(function ($q) use ($user) {
-                $q->where('escalation_to', $user->id_user);
-                // ->orWhere('escalation_to', $user->id_user);
+                $q->where('escalation_to', $user->id_user)
+                ->orWhere('id_end_user', $user->id_user);
+            });
+        }
+
+        if ($user->hasRole('End User')) {
+            $query->where(function ($q) use ($user) {
+                $q->where('id_end_user', $user->id_user);
             });
         }
 
@@ -315,12 +384,12 @@ class TicketController extends Controller
         if ($request->has('search') && $request->search !== '') {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('ticket_title', 'like', "%{$search}%")
-                ->orWhere('id_ticket', 'like', "%{$search}%")
-                ->orWhere('id_ticket_type', 'like', "%{$search}%")
-                ->orWhereHas('endUser', fn($q) => $q->where('nama_user', 'like', "%{$search}%"))
-                ->orWhereHas('pic', fn($q) => $q->where('nama_user', 'like', "%{$search}%"))
-                ->orWhereHas('escalationTo', fn($q) => $q->where('nama_user', 'like', "%{$search}%"));
+                $q->where('ticket_title', 'ilike', "%{$search}%")
+                ->orWhere('id_ticket', 'ilike', "%{$search}%")
+                ->orWhere('id_ticket_type', 'ilike', "%{$search}%")
+                ->orWhereHas('endUser', fn($q) => $q->where('nama_user', 'ilike', "%{$search}%"))
+                ->orWhereHas('pic', fn($q) => $q->where('nama_user', 'ilike', "%{$search}%"))
+                ->orWhereHas('escalationTo', fn($q) => $q->where('nama_user', 'ilike', "%{$search}%"));
             });
         }
 
@@ -333,8 +402,11 @@ class TicketController extends Controller
 
         $data = $tickets->map(function ($ticket) {
             $normalSla = $ticket->priority?->sla_duration_normal ?? 0;
-            $escalationSla = !empty($ticket->escalation_to) ? ($ticket->priority?->sla_duration_escalation ?? 0) : 0;
-            $totalSla = $normalSla + $escalationSla;
+            $internalEscalationSla = $ticket->escalation_to ? ($ticket->priority?->sla_duration_escalation ?? 0) : 0;
+            $thirdPartySla = $ticket->id_eskalasi_pihak_ketiga ? ($ticket->eskalasiPihakKetiga?->tp_sla_duration ?? 0) : 0;
+
+            $totalSla = $normalSla + $internalEscalationSla + $thirdPartySla;
+
 
             $dueDate = $totalSla && $ticket->progress_date
                 ? $this->calculateDueDateSkippingHolidays($ticket->progress_date, $totalSla)
@@ -354,6 +426,10 @@ class TicketController extends Controller
                 'id_divisi' => $ticket->id_divisi,
                 'id_layanan' => $ticket->id_layanan,
                 'id_ticket_priority' => $ticket->id_ticket_priority,
+                'id_rating' => $ticket->id_rating,
+                'id_solusi' => $ticket->id_solusi,
+                'id_rootcause' => $ticket->id_rootcause,
+                'id_user' => $ticket->id_end_user,
                 'ticket_type' => $ticket->ticket_type,
                 'status_overdue' => $isOverdue ? 'Overdue' : 'On Time',
                 'due_date' => $dueDate ? $dueDate->toDateTimeString() : null,
@@ -369,12 +445,18 @@ class TicketController extends Controller
                 'assigned_date' => optional($ticket->assigned_date)->toDateTimeString(),
                 'escalation_to' => $ticket->escalation_to,
                 'pic_eskalasi' => $ticket->escalationTo?->nama_user,
+                'ticket_closed_by' => $ticket->ticket_closed_by,
+                'pic_closed' => $ticket->closedBy?->nama_user,
                 'tanggal_eskalasi' => optional($ticket->escalation_date)->toDateTimeString(),
                 'created_on' => optional($ticket->created_on)->toDateTimeString(),
                 'created_by' => $ticket->createdBy?->nama_user,
                 'last_updated_on' => optional($ticket->last_updated_on)->toDateTimeString(),
                 'last_updated_by' => $ticket->lastUpdatedBy?->nama_user,
                 'closed_date' => optional($ticket->closed_date)->toDateTimeString(),
+                'nilai_rating' => $ticket->rating?->nilai_rating,
+                'nama_rootcause' => $ticket->rootcause?->nama_rootcause,
+                'nama_solusi' => $ticket->solusi?->nama_solusi,
+                'teks_pendukung' => $ticket->teks_pendukung,
             ];
         });
 
@@ -399,7 +481,6 @@ class TicketController extends Controller
                 $data = $data->sortBy($sortBy, SORT_REGULAR, $sortDir === 'desc')->values();
             }
         } else {
-            // Default sort by id_ticket_type (nulls last, numerically descending by suffix)
             $data = $data->sortBy(function ($item) {
                 return [
                     empty($item['id_ticket_type']) ? 0 : 1,
@@ -434,15 +515,18 @@ class TicketController extends Controller
     {   
         $ticket = is_numeric($id)
             ? $ticket = Ticket::with([
-                'priority', 'pic', 'endUser', 'divisi', 'layanan', 'solusi', 'rootcause', 'request', 'createdBy', 'lastUpdatedBy', 'escalationTo'
+                'priority', 'pic', 'endUser', 'divisi', 'layanan', 'solusi', 'rootcause', 'request', 'createdBy', 'lastUpdatedBy', 'escalationTo', 'eskalasiPihakKetiga', 'eskalasiPihakKetiga.pihakKetiga'
             ])->findOrFail($id)
             : $ticket = Ticket::with([
-                'priority', 'pic', 'endUser', 'divisi', 'layanan', 'solusi', 'rootcause', 'request', 'createdBy', 'lastUpdatedBy', 'escalationTo'
+                'priority', 'pic', 'endUser', 'divisi', 'layanan', 'solusi', 'rootcause', 'request', 'createdBy', 'lastUpdatedBy', 'escalationTo', 'eskalasiPihakKetiga', 'eskalasiPihakKetiga.pihakKetiga'
             ])->where('id_ticket_type', $id)->firstOrFail();
 
         $normalSla = $ticket->priority?->sla_duration_normal ?? 0;
-        $escalationSla = !empty($ticket->escalation_to) ? ($ticket->priority?->sla_duration_escalation ?? 0) : 0;
-        $totalSla = $normalSla + $escalationSla;
+        $internalEscalationSla = $ticket->escalation_to ? ($ticket->priority?->sla_duration_escalation ?? 0) : 0;
+        $thirdPartySla = $ticket->id_eskalasi_pihak_ketiga ? ($ticket->eskalasiPihakKetiga?->tp_sla_duration ?? 0) : 0;
+
+        $totalSla = $normalSla + $internalEscalationSla + $thirdPartySla;
+
 
         $dueDate = $totalSla && $ticket->progress_date
             ? $this->calculateDueDateSkippingHolidays($ticket->progress_date, $totalSla)
@@ -483,6 +567,7 @@ class TicketController extends Controller
             'id_rootcause' => $ticket->id_rootcause,
             'id_solusi' => $ticket->id_solusi,
             'id_permintaan' => $ticket->id_permintaan,
+            'id_eskalasi_pihak_ketiga' => $ticket->id_eskalasi_pihak_ketiga,
             'escalation_to' => $ticket->escalation_to,
             'assigned_status' => $ticket->assigned_status,
             'assigned_date' => optional($ticket->assigned_date)->toDateTimeString(),
@@ -513,58 +598,6 @@ class TicketController extends Controller
         ]);
     }
 
-    // public function store(Request $request)
-    // {
-    //     $validated = $request->validate([
-    //         'nama_ticket' => 'required|string|max:255',
-    //         'ticket_description' => 'nullable|string',
-    //         'assigned_status' => 'nullable|string|max:50',
-    //         'escalation_to' => 'nullable|string|max:255',
-    //         'id_ticket_status' => 'required|exists:tblm_ticket_status,id_ticket_status',
-    //         'id_ticket_priority' => 'required|exists:tblm_ticket_priority,id_ticket_priority',
-    //         'id_divisi' => 'required|exists:tblm_divisi,id_divisi',
-    //         'id_ticket_type' => 'required|exists:tblm_ticket_type,id_ticket_type',
-    //         'id_asset' => 'nullable|exists:tblt_asset,id_asset',
-    //         'id_end_user' => 'nullable|exists:tblm_user,id_user',
-    //         'id_rootcause' => 'nullable|exists:tblm_rootcause,id_rootcause',
-    //         'tp_rootcause' => 'nullable|string',
-    //         'tp_rootcause_desc' => 'nullable|string',
-    //         'tp_solusi' => 'nullable|string',
-    //         'id_asset_kategori' => 'nullable|exists:tblm_asset_kategori,id_asset_kategori',
-    //     ]);
-
-    //     $validated['id_ticket'] = $this->generateCustomTicketId();
-    //     $validated['created_by'] = Auth::id();
-    //     $validated['last_updated_by'] = Auth::id();
-    //     $validated['last_updated_on'] = now();
-
-    //     if (isset($validated['assigned_status']) && $validated['assigned_status'] === 'Assigned') {
-    //         $validated['assigned_date'] = now();
-    //     }
-
-    //     $statusName = \App\Models\TicketStatus::find($validated['id_ticket_status'])?->ticket_status;
-    //     if ($statusName === 'Closed') {
-    //         $validated['closed_date'] = now();
-    //     }
-
-    //     $ticket = Ticket::create($validated);
-
-    //     if ($request->has('id_asset_kategori')) {
-    //         $asset = \App\Models\Asset::where('id_asset_kategori', $request->id_asset_kategori)->first();
-    //         if ($asset) {
-    //             $ticket->id_asset = $asset->id_asset;
-    //             $ticket->save();
-    //         }
-    //     }
-
-    //     $ticket->load('asset.kategori');
-
-    //     return response()->json([
-    //         'message' => 'Ticket created successfully',
-    //         'data' => $ticket
-    //     ], 201);
-    // }
-
     public function update(Request $request, $id)
     {
         $ticket = Ticket::findOrFail($id);
@@ -589,10 +622,13 @@ class TicketController extends Controller
             'id_layanan' => 'nullable|exists:tblm_layanan,id_layanan',
             'id_solusi' => 'nullable|exists:tblm_solusi,id_solusi',
             'id_end_user' => 'nullable|exists:tblm_user,id_user',
+            'ticket_closed_by' => 'nullable|exists:tblm_user,id_user',
             'id_rootcause' => 'nullable|exists:tblm_rootcause,id_rootcause',
             'id_permintaan' => 'nullable|exists:tblm_permintaan,id_permintaan',
+            'id_rating' => 'nullable|exists:tblm_rating,id_rating',
             'rootcause_awal' => 'nullable|string',
             'solusi_awal' => 'nullable|string',
+            'teks_pendukung'=> 'nullable|string',
             'link_pendukung' => 'nullable|string',
             'screenshot_pendukung' => 'nullable|string',
             'teknisi_tambahan' => 'nullable|array',
@@ -622,16 +658,6 @@ class TicketController extends Controller
                 $validated['screenshot_pendukung'] = $filePath;
             }
         }
-
-
-        // if ($request->has('inline_update') && $request->has('assigned_update') && Auth::check() && Auth::user()->role_user === 'Admin') {
-        //     if (empty($ticket->id_pic_ticket) && !$request->filled('id_pic_ticket')) {
-        //         $validated['id_pic_ticket'] = Auth::id();
-        //         $validated['assigned_status'] = 'Assigned';
-        //         $validated['ticket_status'] = 'On Progress';
-        //         $validated['assigned_date'] = now();
-        //     }
-        // }
 
         $isComplete =
             ($ticket->ticket_type ?? $validated['ticket_type'] ?? null) &&
@@ -676,89 +702,6 @@ class TicketController extends Controller
             }
         }
 
-        // Capture old escalation before saving
-        $oldEscalation = $ticket->escalation_to;
-        $newEscalation = $validated['escalation_to'] ?? $ticket->escalation_to;
-
-        $isEscalated = !empty($newEscalation) && $newEscalation !== $oldEscalation;
-
-        if ($isEscalated) {
-            $newEscalationUser = User::find($newEscalation);
-
-            $tracking = TicketTracking::create([
-                'id_ticket' => $ticket->id_ticket,
-                'id_ticket_type' => $ticket->id_ticket_type,
-                'id_pic_ticket' => $ticket->id_pic_ticket,
-                'ticket_type' => $ticket->ticket_type,
-                'tracking_status' => 'On Progress',
-                'ticket_comment' => 'Pengerjaan dialihkan ke ' . ($newEscalationUser->nama_user ?? '-'),
-                'comment_created_on' => now(),
-                'tracking_created_on' => now(),
-            ]);
-
-            $namaUser = $ticket->endUser?->nama_user ?? '-';
-            $adminUsers = Role::findByName('Admin')->users;
-            foreach ($adminUsers as $adminUser) {
-                $adminUser->notify(new TicketNotification(
-                    $ticket->id_ticket,
-                    $tracking->id_ticket_tracking,
-                    'ticket_escalation',
-                    $namaUser,
-                    $ticket->id_ticket_type
-                ));
-            }
-
-            if ($newEscalationUser) {
-                $newEscalationUser->notify(new TicketNotification(
-                    $ticket->id_ticket,
-                    $tracking->id_ticket_tracking,
-                    'ticket_escalation',
-                    $namaUser,
-                    $ticket->id_ticket_type
-                ));
-            }
-
-            $recipients = array_filter([
-                $ticket->endUser?->email,
-                $ticket->pic?->email,
-                $newEscalationUser?->email,
-            ]);
-
-            foreach ($recipients as $email) {
-                if (str_contains($email, '@')) {
-                    Mail::to($email)->send(new TicketEskalasiUpdate($ticket, $tracking->ticket_comment, null, $tracking->id_ticket_tracking));
-                }
-            }
-        }
-
-        // ✅ Save once
-        $ticket->update($validated);
-        $ticket->refresh()->load(['endUser', 'escalationTo']);
-
-        // Send notification only if escalation happened
-        // if (!empty($validated['escalation_to']) && $validated['escalation_to'] !== $oldEscalation) {
-        //     $namaUser = $ticket->endUser?->nama_user ?? '-';
-        //     $adminUsers = Role::findByName('Admin')->users;
-        //     foreach ($adminUsers as $adminUser) {
-        //         $adminUser->notify(new TicketNotification(
-        //             $ticket->id_ticket,
-        //             null,
-        //             'ticket_escalation',
-        //             $namaUser,
-        //             $ticket->id_ticket_type
-        //         ));
-        //     }
-        //     if ($ticket->escalationTo) {
-        //         $ticket->escalationTo->notify(new TicketNotification(
-        //             $ticket->id_ticket,
-        //             null,
-        //             'ticket_escalation',
-        //             $namaUser,
-        //             $ticket->id_ticket_type
-        //         ));
-        //     }
-        // }
-
         // ✅ Auto update assigned date
         if ($request->has('inline_update') && $request->inline_update && $request->has('id_pic_ticket')) {
             if ($request->id_pic_ticket) {
@@ -769,13 +712,6 @@ class TicketController extends Controller
                 $validated['assigned_date'] = null;
             }
         }
-        // if ($request->has('inline_update') && $request->inline_update && isset($validated['assigned_status'])) {
-        //     if ($validated['assigned_status'] === 'Assigned') {
-        //         $validated['assigned_date'] = now();
-        //     } else {
-        //         $validated['assigned_date'] = null;
-        //     }
-        // }
 
         // ✅ Auto update progress date
         if ($request->has('inline_update') && $request->inline_update && isset($validated['ticket_status'])) {
@@ -793,6 +729,7 @@ class TicketController extends Controller
             if ($validated['ticket_status'] === 'Closed') {
                 $validated['closed_date'] = now();
                 $validated['tracking_status'] = 'Closed';
+                $validated['ticket_closed_by'] = Auth::id();
             } else {
                 $validated['closed_date'] = null;
             }
@@ -804,6 +741,171 @@ class TicketController extends Controller
                 $validated['tracking_status'] = 'Cancelled';
             }
         }
+
+        // ✅ Add nilai rating
+        if ($request->inline_update && $request->has('nilai_rating')) {
+            $rating = Rating::updateOrCreate(
+                ['nilai_rating' => $request->nilai_rating]
+            );
+
+            $validated['id_rating'] = $rating->id_rating;
+        }
+
+
+        $effectiveProgressDate = $validated['progress_date'] ?? $ticket->progress_date;
+        $effectiveEscalationTo = $validated['escalation_to'] ?? $ticket->escalation_to;
+
+        $normalSla = $ticket->priority?->sla_duration_normal ?? 0;
+        $internalEscalationSla = $ticket->escalation_to ? ($ticket->priority?->sla_duration_escalation ?? 0) : 0;
+        $thirdPartySla = $ticket->id_eskalasi_pihak_ketiga ? ($ticket->eskalasiPihakKetiga?->tp_sla_duration ?? 0) : 0;
+
+        $totalSla = $normalSla + $internalEscalationSla + $thirdPartySla;
+
+
+        $dueDate = $totalSla && $effectiveProgressDate
+            ? $this->calculateDueDateSkippingHolidays($effectiveProgressDate, $totalSla)
+            : null;
+
+        if ($dueDate) {
+            $validated['due_date'] = $dueDate; // put it in validated so it's saved with other changes
+        }
+
+        $isOverdue = $dueDate && optional($ticket->closed_date ?? now())->gt($dueDate);
+
+        // Capture old escalation before saving
+        $oldEscalation = $ticket->escalation_to;
+        $newEscalation = $validated['escalation_to'] ?? $ticket->escalation_to;
+
+        $oldVendor = $ticket->id_eskalasi_pihak_ketiga;
+        $newVendor = $validated['id_eskalasi_pihak_ketiga'] ?? $ticket->id_eskalasi_pihak_ketiga;
+
+        $isVendorEscalated = !empty($newVendor) && $newVendor !== $oldVendor;
+
+
+        $isEscalated = !empty($newEscalation) && $newEscalation !== $oldEscalation;
+
+        // Evaluate against status possibly changed in this request
+        $currentStatus = $validated['ticket_status'] ?? $ticket->ticket_status;
+
+        // -------------------------------------------------------
+        // 🚫 BLOCK INTERNAL ESCALATION IF THIRD-PARTY ESCALATION EXISTS
+        // -------------------------------------------------------
+        if ($ticket->id_eskalasi_pihak_ketiga) {
+
+            // Completely ignore incoming escalation_to from request
+            unset($validated['escalation_to']);
+            unset($validated['escalation_date']);
+
+            // DO NOT run internal escalation logic
+        }
+
+        // -------------------------------------------------------
+        // ✅ INTERNAL ESCALATION (when NO third-party escalation)
+        // -------------------------------------------------------
+        elseif ($isEscalated) {
+
+            $newEscalationUser = User::find($newEscalation);
+            $namaUser = $ticket->endUser?->nama_user ?? '-';
+            $adminUsers = Role::findByName('Admin')->users;
+
+            // 🟦 Build escalation target display (internal OR external)
+            if ($ticket->eskalasiPihakKetiga) {
+                $assignedTo =
+                    $ticket->eskalasiPihakKetiga->tp_pic_ticket .
+                    ' (' . ($ticket->eskalasiPihakKetiga->pihakKetiga->nama_perusahaan ?? '-') . ')';
+            } else {
+                $assignedTo = $newEscalationUser?->nama_user ?? '-';
+            }
+
+            // --- Open: notifications only ---
+            if ($currentStatus === 'Open') {
+                foreach ($adminUsers as $adminUser) {
+                    $adminUser->notify(new TicketNotification(
+                        $ticket->id_ticket,
+                        null,
+                        'ticket_escalation',
+                        $namaUser,
+                        $ticket->id_ticket_type,
+                        $assignedTo
+                    ));
+                }
+
+                if ($newEscalationUser) {
+                    $newEscalationUser->notify(new TicketNotification(
+                        $ticket->id_ticket,
+                        null,
+                        'ticket_escalation',
+                        $namaUser,
+                        $ticket->id_ticket_type,
+                        $assignedTo
+                    ));
+                }
+            }
+
+            // --- On Progress: tracking + notifications + emails ---
+            if ($currentStatus === 'On Progress') {
+                $tracking = TicketTracking::create([
+                    'id_ticket'           => $ticket->id_ticket,
+                    'id_ticket_type'      => $ticket->id_ticket_type,
+                    'id_pic_ticket'       => $ticket->id_pic_ticket,
+                    'ticket_type'         => $ticket->ticket_type,
+                    'tracking_status'     => 'On Progress',
+                    'ticket_comment'      => 'Pengerjaan dialihkan ke ' . $assignedTo,
+                    'comment_created_on'  => now(),
+                    'tracking_created_on' => now(),
+                ]);
+
+                foreach ($adminUsers as $adminUser) {
+                    $adminUser->notify(new TicketNotification(
+                        $ticket->id_ticket,
+                        $tracking->id_ticket_tracking,
+                        'ticket_escalation',
+                        $namaUser,
+                        $ticket->id_ticket_type,
+                        $assignedTo
+                    ));
+                }
+
+                if ($newEscalationUser) {
+                    $newEscalationUser->notify(new TicketNotification(
+                        $ticket->id_ticket,
+                        $tracking->id_ticket_tracking,
+                        'ticket_escalation',
+                        $namaUser,
+                        $ticket->id_ticket_type,
+                        $assignedTo
+                    ));
+                }
+
+                $recipients = array_filter([
+                    $ticket->endUser?->email,
+                    $ticket->pic?->email,
+                    $newEscalationUser?->email,
+                ]);
+
+                foreach ($recipients as $email) {
+                    if (str_contains($email, '@')) {
+                        $ticket->escalation_to = $newEscalation;
+
+                        if ($newEscalationUser) {
+                            $ticket->setRelation('escalationTo', $newEscalationUser);
+                        }
+
+                        $ticket->due_date = $validated['due_date'] ?? $ticket->due_date;
+
+                        Mail::to($email)->send(
+                            new TicketEskalasiUpdate($ticket, $tracking->ticket_comment, null, $tracking->id_ticket_tracking)
+                        );
+                    }
+                }
+            }
+
+        } // <-- closes the elseif
+
+
+        // ✅ Save once
+        $ticket->update($validated);
+        $ticket->refresh()->load(['endUser', 'escalationTo']);
 
         $fieldLabels = [
             'ticket_status' => 'Status Tiket',
@@ -818,6 +920,7 @@ class TicketController extends Controller
             'escalation_date' => 'Tanggal Eskalasi',
             'rootcause_awal' => 'Analisis Awal',
             'solusi_awal' => 'Solusi Awal',
+            'ticket_closed_by' => 'Ditutup Oleh',
         ];
 
         $changes = [];
@@ -839,7 +942,7 @@ class TicketController extends Controller
             if ($oldValue != $newValue) {
                 $label = $fieldLabels[$field] ?? ucwords(str_replace('_', ' ', $field));
 
-                if (in_array($field, ['id_pic_ticket', 'escalation_to', 'last_updated_by'])) {
+                if (in_array($field, ['id_pic_ticket', 'escalation_to', 'last_updated_by', 'ticket_closed_by'])) {
                     $oldUser = $oldValue ? User::find($oldValue)?->nama_user : '-';
                     $newUser = $newValue ? User::find($newValue)?->nama_user : '-';
                     $changes[] = "$label: " . ($oldUser ?? '-') . " ➜ " . ($newUser ?? '-');
@@ -901,74 +1004,9 @@ class TicketController extends Controller
             'rootcause_awal' => $ticket->rootcause_awal,
             'last_updated_by' => $validated['last_updated_by'],
             'last_updated_on' => $validated['last_updated_on'],
+            'ticket_closed_by' => $ticket->ticket_closed_by,
             'change_summary' => $logSummary, // ✅ here it goes
         ]);
-
-        // ✅ Create new tracking point if escalation happens AFTER Deploy
-        // if (
-        //     $request->has('inline_update') &&
-        //     $request->inline_update &&
-        //     isset($validated['escalation_to']) &&
-        //     !empty($validated['escalation_to']) &&
-        //     $ticket->ticket_status === 'On Progress' &&
-        //     $oldEscalation !== $validated['escalation_to']
-        // ) {
-        //     $newEscalationUser = User::find($validated['escalation_to']);
-
-        //     $tracking = TicketTracking::create([
-        //         'id_ticket' => $ticket->id_ticket,
-        //         'id_ticket_type' => $ticket->id_ticket_type,
-        //         'id_pic_ticket' => $ticket->id_pic_ticket,
-        //         'ticket_type' => $ticket->ticket_type,
-        //         'tracking_status' => 'On Progress',
-        //         'ticket_comment' => 'Pengerjaan dialihkan ke ' . ($newEscalationUser->nama_user ?? '-'),
-        //         'comment_created_on' => now(),
-        //         'tracking_created_on' => now(),
-        //     ]);
-
-        //     $namaUser = $ticket->endUser?->nama_user ?? '-';
-        //     $adminUsers = Role::findByName('Admin')->users;
-        //     foreach ($adminUsers as $adminUser) {
-        //         $adminUser->notify(new TicketNotification(
-        //             $ticket->id_ticket,
-        //             $tracking->id_ticket_tracking,
-        //             'ticket_escalation',
-        //             $namaUser,
-        //             $ticket->id_ticket_type
-        //         ));
-        //     }
-        //     if ($ticket->escalationTo) {
-        //         $ticket->escalationTo->notify(new TicketNotification(
-        //             $ticket->id_ticket,
-        //             $tracking->id_ticket_tracking,
-        //             'ticket_escalation',
-        //             $namaUser,
-        //             $ticket->id_ticket_type
-        //         ));
-        //     }
-
-        //     // ✅ Optionally send mail
-        //     $recipients = array_filter([
-        //         $ticket->endUser?->email,
-        //         $ticket->pic?->email,
-        //         $newEscalationUser?->email,
-        //     ]);
-
-        //     $idTicketTracking = $tracking->id_ticket_tracking;
-        //     $ticket->refresh()->load(['pic', 'escalationTo']);
-
-        //     \Log::info('Sending escalation email with ticket data:', [
-        //         'id_ticket' => $ticket->id_ticket,
-        //         'escalation_to' => $ticket->escalation_to,
-        //         'escalation_user' => optional($ticket->escalationTo)->nama_user,
-        //     ]);
-
-        //     foreach ($recipients as $email) {
-        //         if ($email && str_contains($email, '@')) {
-        //             Mail::to($email)->send(new TicketEskalasiUpdate($ticket, $tracking->ticket_comment, null, $idTicketTracking));
-        //         }
-        //     }
-        // }
 
         if ($request->has('inline_update') && isset($validated['tracking_status'])) {
             $trackingStatus = $validated['tracking_status'];
@@ -996,7 +1034,6 @@ class TicketController extends Controller
                     'pic_comment' => null,
                     'user_comment' => null,
                     'cancel_comment' => $trackingStatus === 'Cancelled' ? ($request->cancel_comment ?? null) : null,
-                    'solusi_comment' => $trackingStatus === 'Closed' ? ($request->solusi_comment ?? null) : null,
                 ]);
 
                 $idTicketTracking = $tracking->id_ticket_tracking;
@@ -1013,11 +1050,10 @@ class TicketController extends Controller
                         $systemComment = $tracking->ticket_comment;
                         $picComment = $tracking->pic_comment;
                         $cancelComment = $tracking->cancel_comment;
-                        $solusiComment = $tracking->solusi_comment;
 
                         switch ($trackingStatus) {
                             case 'Closed':
-                                Mail::to($email)->send(new TicketClosedStatus($ticket, $systemComment, $picComment, $solusiComment, $idTicketTracking));
+                                Mail::to($email)->send(new TicketClosedStatus($ticket, $systemComment, $picComment, $idTicketTracking));
                                 break;
                             case 'Cancelled':
                                 Mail::to($email)->send(new TicketCancelledStatus($ticket, $systemComment, $picComment, $cancelComment, $idTicketTracking));
@@ -1028,29 +1064,12 @@ class TicketController extends Controller
                             case 'On Progress':
                                 Mail::to($email)->send(new TicketOnProgressStatus($ticket, $systemComment, $picComment, $idTicketTracking));
                                 break;
-                            // default:
-                            //     Mail::to($email)->send(new TicketTrackingStatusUpdated($ticket, $systemComment, $picComment, $idTicketTracking));
                         }
                     }
                 }
 
             }
         }
-
-        $normalSla = $ticket->priority?->sla_duration_normal ?? 0;
-        $escalationSla = !empty($ticket->escalation_to) ? ($ticket->priority?->sla_duration_escalation ?? 0) : 0;
-        $totalSla = $normalSla + $escalationSla;
-
-        $dueDate = $totalSla && $ticket->progress_date
-            ? $this->calculateDueDateSkippingHolidays($ticket->progress_date, $totalSla)
-            : null;
-
-        if ($dueDate) {
-            $ticket->due_date = $dueDate;
-            $ticket->save();
-        }
-
-        $isOverdue = $dueDate && optional($ticket->closed_date ?? now())->gt($dueDate);
 
         return response()->json([
             'message' => 'Ticket updated successfully',
@@ -1075,6 +1094,7 @@ class TicketController extends Controller
                 'id_rootcause' => $ticket->id_rootcause,
                 'id_solusi' => $ticket->id_solusi,
                 'id_permintaan' => $ticket->id_permintaan,
+                'id_rating' => $ticket->id_rating,
                 'nama_rootcause' => $ticket->rootcause?->nama_rootcause ?? '-',
                 'rootcause_description' => $ticket->rootcause?->rootcause_description ?? '-',
                 'nama_solusi' => $ticket->solusi?->nama_solusi ?? '-',
@@ -1086,10 +1106,13 @@ class TicketController extends Controller
                 'tanggal_eskalasi' => optional($ticket->escalation_date)->toDateTimeString(),
                 'tanggal_close' => optional($ticket->closed_date)->toDateTimeString(),
                 'analisis_awal' => $ticket->rootcause_awal,
+                'teks_pendukung' => $ticket->teks_pendukung,
                 'link_pendukung' => $ticket->link_pendukung,
                 'screenshot_pendukung' => $ticket->screenshot_pendukung,
                 'teknisi_tambahan' => $ticket->teknisi_tambahan,
-
+                'ticket_closed_by' => $ticket->ticket_closed_by,
+                'pic_closed' => $ticket->closedBy?->nama_user,
+                'nilai_rating' => $ticket->rating?->nilai_rating,
             ]
         ]);
     }

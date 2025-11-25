@@ -305,7 +305,7 @@ const submitForm = async () => {
 
 
 const deletePriority = async (id) => {
-  if (!confirm('Yakin ingin menghapus prioritas ini?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus prioritas ini?')) return;
 
   globalLoading.value = true;
   try {

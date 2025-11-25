@@ -40,9 +40,15 @@ class PermissionSeeder extends Seeder
             // Notifications
             'notifications.view', 'notifications.update', 'notifications.delete',
 
-            // Roles & Permissions (UI for managing them)
+            // Roles & Permissions
             'roles.view', 'roles.create', 'roles.update', 'roles.delete',
             'permissions.view', 'permissions.create', 'permissions.update', 'permissions.delete',
+            
+            // Rating Management
+            'ratings.view', 'ratings.create', 'ratings.update', 'ratings.delete',
+
+            // Pihak Ketiga Management
+            'pihak_ketiga.view', 'pihak_ketiga.create', 'pihak_ketiga.update', 'pihak_ketiga.delete',
         ];
 
         foreach ($permissions as $permission) {

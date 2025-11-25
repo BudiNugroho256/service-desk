@@ -20,6 +20,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\PihakKetigaController;
 
 
 // --- Authenticated user with division ---
@@ -27,17 +28,21 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user()->load('divisi', 'roles');
 });
 
+
+
 // --- Ticket Management ---
+Route::middleware('permission:tickets.view')->get('/tickets/{id}/logs', [TicketController::class, 'getTicketLogs']);
+Route::middleware('permission:tickets.view')->get('/tickets/{id}/tracking', [TicketController::class, 'getTrackingPoints']);
+Route::middleware('permission:tickets.update')->post('/tickets/{ticket}/tracking/{tracking}/comment', [TicketController::class, 'submitPicComment']);
+Route::middleware('permission:tickets.update')->post('/tickets/{ticket}/tracking/{tracking}/cancel', [TicketController::class, 'submitCancelComment']);
+Route::middleware('permission:tickets.update')->get('/tickets/pihak-ketiga-list', [TicketController::class, 'getPihakKetiga']);
+Route::middleware('permission:tickets.update')->post('/tickets/{id}/assign-pihak-ketiga', [TicketController::class, 'assignPihakKetiga']);
+
 Route::middleware('permission:tickets.view')->get('/tickets', [TicketController::class, 'index']);
 Route::middleware('permission:tickets.view')->get('/tickets/{id}', [TicketController::class, 'show']);
 Route::middleware('permission:tickets.create')->post('/tickets', [TicketController::class, 'store']);
 Route::middleware('permission:tickets.update')->put('/tickets/{id}', [TicketController::class, 'update']);
 Route::middleware('permission:tickets.delete')->delete('/tickets/{id}', [TicketController::class, 'destroy']);
-
-Route::middleware('permission:tickets.view')->get('/tickets/{id}/logs', [TicketController::class, 'getTicketLogs']);
-Route::middleware('permission:tickets.view')->get('/tickets/{id}/tracking', [TicketController::class, 'getTrackingPoints']);
-Route::middleware('permission:tickets.update')->post('/tickets/{ticket}/tracking/{tracking}/comment', [TicketController::class, 'submitPicComment']);
-Route::middleware('permission:tickets.update')->post('/tickets/{ticket}/tracking/{tracking}/cancel', [TicketController::class, 'submitCancelComment']);
 
 // --- User Management ---
 Route::middleware('permission:users.view')->get('/users', [UserController::class, 'index']);
@@ -53,7 +58,7 @@ Route::middleware('permission:divisions.create')->post('/divisions', [DivisiCont
 Route::middleware('permission:divisions.update')->put('/divisions/{id}', [DivisiController::class, 'update']);
 Route::middleware('permission:divisions.delete')->delete('/divisions/{id}', [DivisiController::class, 'destroy']);
 
-// --- Ticket Priorities Management ---
+// --- Ticket Priority Management ---
 Route::middleware('permission:priorities.view')->get('/priorities', [TicketPriorityController::class, 'index']);
 Route::middleware('permission:priorities.view')->get('/priorities/{id}', [TicketPriorityController::class, 'show']);
 Route::middleware('permission:priorities.create')->post('/priorities', [TicketPriorityController::class, 'store']);
@@ -118,3 +123,17 @@ Route::middleware('permission:reports.update')->put('/reports/{id}', [ReportCont
 Route::middleware('permission:reports.delete')->delete('/reports/{id}', [ReportController::class, 'destroy']);
 Route::middleware('permission:reports.view')->get('/reports/{id}/pdf', [ReportController::class, 'generatePDF']);
 Route::middleware('permission:reports.view')->get('/reports/{id}/excel', [ReportController::class, 'generateExcel']);
+
+// --- Rating Management ---
+Route::middleware('permission:ratings.view')->get('/ratings', [RatingController::class, 'index']);
+Route::middleware('permission:ratings.view')->get('/ratings/{id}', [RatingController::class, 'show']);
+Route::middleware('permission:ratings.create')->post('/ratings', [RatingController::class, 'store']);
+Route::middleware('permission:ratings.update')->put('/ratings/{id}', [RatingController::class, 'update']);
+Route::middleware('permission:ratings.delete')->delete('/ratings/{id}', [RatingController::class, 'destroy']);
+
+// --- Pihak Ketiga Management ---
+Route::middleware('permission:pihak_ketiga.view')->get('/pihak-ketiga', [PihakKetigaController::class, 'index']);
+Route::middleware('permission:pihak_ketiga.view')->get('/pihak-ketiga/{id}', [PihakKetigaController::class, 'show']);
+Route::middleware('permission:pihak_ketiga.create')->post('/pihak-ketiga', [PihakKetigaController::class, 'store']);
+Route::middleware('permission:pihak_ketiga.update')->put('/pihak-ketiga/{id}', [PihakKetigaController::class, 'update']);
+Route::middleware('permission:pihak_ketiga.delete')->delete('/pihak-ketiga/{id}', [PihakKetigaController::class, 'destroy']);

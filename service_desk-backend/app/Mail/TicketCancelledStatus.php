@@ -14,12 +14,17 @@ class TicketCancelledStatus extends Mailable
 
     public Ticket $ticket;
     public string $systemComment;
-    public ?string $picComment;
+    public ?string $picComment;       // kept for signature parity, not displayed (same as original behavior)
     public ?string $cancelComment;
     public int $idTicketTracking;
 
-    public function __construct(Ticket $ticket, string $systemComment, ?string $picComment = null, ?string $cancelComment = null, int $idTicketTracking)
-    {
+    public function __construct(
+        Ticket $ticket,
+        string $systemComment,
+        ?string $picComment = null,
+        ?string $cancelComment = null,
+        int $idTicketTracking
+    ) {
         $this->ticket = $ticket;
         $this->systemComment = $systemComment;
         $this->picComment = $picComment;
@@ -29,18 +34,7 @@ class TicketCancelledStatus extends Mailable
 
     public function build()
     {
-        $userName = $this->ticket->endUser?->nama_user ?? 'User';
-        $layanan = $this->ticket->layanan
-            ? "{$this->ticket->layanan->group_layanan} - {$this->ticket->layanan->nama_layanan}"
-            : 'Belum Ada';
-
-        $prioritas = $this->ticket->priority
-            ? "{$this->ticket->priority->tingkat_priority} (Dampak: {$this->ticket->priority->tingkat_dampak}, Urgensi: {$this->ticket->priority->tingkat_urgensi})"
-            : 'Belum Ada';
-
-        $jenisTiket = $this->ticket->ticket_type ?? 'Belum Ditentukan';
-        $picTiket = $this->ticket->pic?->nama_user ?? 'Belum Ada';
-        $picEskalasi = $this->ticket->escalationTo?->nama_user ?? 'Belum Ada';
+        $userName   = $this->ticket->endUser?->nama_user ?? 'User';
         $description = $this->ticket->ticket_description;
 
         $body = "
@@ -61,20 +55,24 @@ class TicketCancelledStatus extends Mailable
         $body .= "
             <p><strong>Judul:</strong> {$this->ticket->ticket_title}</p>
             <p><strong>Deskripsi Tiket:</strong></p>
-            <div style='border: 1px solid #ccc; padding: 10px; margin-bottom: 20px;'>
-                {$this->ticket->ticket_description}
+            <div style='border:1px solid #ccc;padding:10px;margin-bottom:20px;'>
+                {$description}
             </div>
-            <p><strong>Status:</strong> {$this->ticket->ticket_status}</p>
-            <p><strong>Tracking Point:</strong> {$this->systemComment}</p>
+
+            <p>Dengan detail tiket sebagai berikut:</p>
+            <ul>
+                <li><strong>Status:</strong> {$this->ticket->ticket_status}</li>
+                <li><strong>Tracking Point:</strong> {$this->systemComment}</li>
+            </ul>
             <hr>
             <p>Dibatalkan pada: " . now()->format('Y-m-d H:i') . "</p>
             <p>Terima kasih,<br>Service Desk System</p>
         ";
 
         return $this->subject("Re: [Ticket #{$this->ticket->id_ticket}] {$this->ticket->ticket_title}")
-                    ->html($body)
-                    ->withSymfonyMessage(function ($message) {
-                        $this->applyThreadHeaders($message, $this->ticket->id_ticket, false, 'cancelled');
-                    });
+            ->html($body)
+            ->withSymfonyMessage(function ($message) {
+                $this->applyThreadHeaders($message, $this->ticket->id_ticket, false, 'cancelled');
+            });
     }
 }

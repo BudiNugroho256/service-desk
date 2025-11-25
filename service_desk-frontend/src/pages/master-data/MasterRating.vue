@@ -3,7 +3,7 @@
     <div class="bg-white shadow overflow-hidden">
       <!-- Header -->
       <div class="bg-red-500 text-white text-lg font-semibold px-6 py-3">
-        Permintaan Management
+        Rating Management
       </div>
 
       <!-- Controls -->
@@ -11,7 +11,7 @@
         <!-- Left: Tambah User Button -->
         <div class="flex-shrink-0">
           <button @click="openCreate" class="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded font-medium">
-            + Tambah Permintaan
+            + Tambah Rating
           </button>
         </div>
 
@@ -19,7 +19,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center gap-4 justify-center mx-auto">
           <div class="text-sm">
             Show
-            <select v-model="perPage" @change="fetchPermintaan" class="border border-gray-300 px-2 py-1 mx-1 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300">
+            <select v-model="perPage" @change="fetchRating" class="border border-gray-300 px-2 py-1 mx-1 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300">
               <option :value="5">5</option>
               <option :value="10">10</option>
               <option :value="25">25</option>
@@ -92,18 +92,49 @@
                 </th>
               </tr>
             </thead>
-              <tbody>
-                <tr v-for="(permintaan, index) in permintaan" :key="permintaan.id_permintaan" :class="[index % 2 === 0 ? 'bg-gray-50' : 'bg-white', 'hover:bg-gray-100']">
-                  <td class="px-4 py-3 border border-gray-300 truncate">{{ (page - 1) * perPage + index + 1 }}</td>
-                  <td class="px-4 py-3 border border-gray-300 truncate">{{ permintaan.group_layanan && permintaan.nama_layanan ? permintaan.group_layanan + ' - ' + permintaan.nama_layanan : permintaan.group_layanan || permintaan.nama_layanan || '-' }}</td>
-                  <td class="px-4 py-3 border border-gray-300 truncate">{{ permintaan.nama_permintaan }}</td>
-                  <td class="px-4 py-3 border border-gray-300 truncate">{{ permintaan.permintaan_description || '-' }}</td>
-                  <td class="px-4 py-3 border border-gray-300 space-x-1 truncate">
-                    <button @click="openModal(permintaan, 'edit')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">Edit</button>
-                    <button @click="deletePermintaan(permintaan.id_permintaan)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">Delete</button>
-                  </td>
+            <tbody>
+                <tr
+                v-for="(rating, index) in items"
+                :key="rating.id_rating"
+                :class="[index % 2 === 0 ? 'bg-gray-50' : 'bg-white', 'hover:bg-gray-100']"
+                >
+                    <td class="px-4 py-3 border border-gray-300 truncate">
+                        {{ (page - 1) * perPage + index + 1 }}
+                    </td>
+
+                    <td class="px-4 py-3 border border-gray-300 truncate">
+                        {{ rating.nama_rating }}
+                    </td>
+
+                    <td class="px-4 py-3 border border-gray-300">
+                        <span class="text-yellow-500 text-sm font-semibold">
+                        {{ getStars(rating.nilai_rating) }}
+                        </span>
+                        <span class="ml-1 text-gray-500 text-xs">
+                        ({{ rating.nilai_rating }})
+                        </span>
+                    </td>
+
+                    <td class="px-4 py-3 border border-gray-300 truncate">
+                        {{ rating.rating_description }}
+                    </td>
+
+                    <td class="px-4 py-3 border border-gray-300 space-x-1 w-36">
+                        <button
+                        @click="openModal(rating, 'edit')"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                        Edit
+                        </button>
+                        <button
+                        @click="deleteRating(rating.id_rating)"
+                        class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                        Delete
+                        </button>
+                    </td>
                 </tr>
-              </tbody>
+            </tbody>
           </table>
         </div>
       </div>
@@ -135,49 +166,48 @@
         <div class="bg-white w-full max-w-md rounded shadow-lg p-6">
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-semibold">
-              {{ modalMode === 'edit' ? 'Edit Permintaan' : 'Tambah Permintaan' }}
+              {{ modalMode === 'edit' ? 'Edit Rating' : 'Tambah Rating' }}
             </h2>
             <button @click="showModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
           </div>
 
           <form @submit.prevent="submitForm" class="space-y-4">
-
-            <!-- Group Layanan - Nama Layanan -->
+            <!-- Nama Rating -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Layanan</label>
-              <div class="w-fit border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-gray-300">
-                <Multiselect
-                  v-model="form.id_layanan"
-                  :options="activeLayananOptions"
-                  :track-by="'id_layanan'"
-                  label="nama_layanan" 
-                  :custom-label="customLayananLabel"
-                  :multiple="false"
-                  :searchable="true"
-                  :close-on-select="true"
-                  :allow-empty="false"
-                  placeholder="Pilih Layanan"
-                  class="text-sm"
-                />
-              </div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nama Rating</label>
+            <input
+                v-model="form.nama_rating"
+                type="text"
+                class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
+                required
+            />
             </div>
 
-            <!-- Permintaan -->
+            <!-- 🔹 Nilai Rating -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Permintaan</label>
-              <input v-model="form.nama_permintaan" type="text" class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300" required />
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nilai Rating</label>
+            <select
+                v-model.number="form.nilai_rating"
+                class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
+                required
+            >
+                <option :value="1">1 - Sangat Buruk</option>
+                <option :value="2">2 - Buruk</option>
+                <option :value="3">3 - Standar</option>
+                <option :value="4">4 - Baik</option>
+                <option :value="5">5 - Sangat Baik</option>
+            </select>
             </div>
 
-            <!-- Deskripsi Permintaan -->
+            <!-- Deskripsi Rating -->
             <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Permintaan</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Rating</label>
             <textarea
-                v-model="form.permintaan_description"
+                v-model="form.rating_description"
                 rows="3"
                 class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 resize-y"
             ></textarea>
             </div>
-
 
             <!-- Buttons -->
             <div class="flex justify-end gap-2 pt-2 border-t mt-4">
@@ -191,74 +221,58 @@
   </div>
 </template>
 
+
 <script setup>
-import { ref, onMounted, watch, computed, nextTick, inject } from 'vue'
+import { ref, onMounted, watch, computed, inject } from 'vue'
 import axiosInstance from '@/lib/axios'
-import Multiselect from 'vue-multiselect'
 
-// === Data Stores ===
-const permintaan = ref([])
-const layanans = ref([])
-// const groupOptions = ref([])
-// const filteredLayananOptions = ref([])
 const globalLoading = inject('globalLoading')
-
+const items = ref([])
 const showModal = ref(false)
 const modalMode = ref('create')
-
 const sortKey = ref(null)
 const sortDirection = ref(null)
 
 const form = ref({
-  // group_layanan: '',
-  id_layanan: '',
-  nama_permintaan: '',
-  permintaan_description: ''
+  nama_rating: '',
+  nilai_rating: 1,
+  rating_description: '',
 })
 
-// === Pagination & Search ===
+
 const page = ref(1)
 const perPage = ref(10)
 const total = ref(0)
 const search = ref('')
 let searchDebounce = null
 
-// === Columns ===
 const columns = [
-  { key: 'id_permintaan', label: 'No' },
-  { key: 'group_layanan', label: 'Layanan' },
-  { key: 'nama_permintaan', label: 'Permintaan' },
-  { key: 'permintaan_description', label: 'Diskripsi Permintaan' },
+  { key: 'id_rating', label: 'No' },
+  { key: 'nama_rating', label: 'Nama Rating' },
+  { key: 'nilai_rating', label: 'Nilai Rating' },
+  { key: 'rating_description', label: 'Deskripsi Rating' },
   { key: 'action', label: 'Action' },
 ]
 
-// === Computed Pagination ===
-const totalPages = computed(() => {
-  const totalNum = Number(total.value)
-  const perPageNum = Number(perPage.value)
-  return isFinite(totalNum) && isFinite(perPageNum) && perPageNum > 0
-    ? Math.ceil(totalNum / perPageNum)
-    : 1
-})
 
-// === Sorting Toggle ===
 const toggleSort = (key) => {
   if (sortKey.value !== key) {
     sortKey.value = key
     sortDirection.value = 'asc'
   } else if (sortDirection.value === 'asc') {
     sortDirection.value = 'desc'
-  } else {
+  } else if (sortDirection.value === 'desc') {
     sortKey.value = null
     sortDirection.value = null
+  } else {
+    sortDirection.value = 'asc'
   }
 }
 
-// === API Call: Permintaan ===
-const fetchPermintaan = async (useGlobalLoader = true) => {
+const fetchRating = async (useGlobalLoader = true) => {
   if (useGlobalLoader) globalLoading.value = true;
   try {
-    const { data } = await axiosInstance.get('/permintaan', {
+    const { data } = await axiosInstance.get('/ratings', {
       params: {
         page: page.value,
         per_page: perPage.value,
@@ -267,130 +281,105 @@ const fetchPermintaan = async (useGlobalLoader = true) => {
         sort_dir: sortDirection.value
       }
     });
-    permintaan.value = data.data || [];
-    total.value = data.total || 0;
-  } catch (err) {
-    console.error('Error fetching permintaan:', err);
-    permintaan.value = [];
-    total.value = 0;
+    items.value = data.data;
+    total.value = data.total;
+  } catch (error) {
+    console.error('Error fetching rating:', error);
   } finally {
     if (useGlobalLoader) globalLoading.value = false;
   }
 };
 
-const fetchLayanans = async () => {
-  globalLoading.value = true;
-  try {
-    const { data } = await axiosInstance.get('/layanans', { params: { page: 1, per_page: 100 } });
-    layanans.value = data.data;
-  } catch (err) {
-    console.error('Error fetching layanans:', err);
-    layanans.value = [];
-  } finally {
-    globalLoading.value = false;
-  }
-};
+// const fetchLayanans = async () => {
+//   const { data } = await axiosInstance.get('/layanans', {
+//     params: {
+//       page: page.value,
+//       per_page: perPage.value,
+//       search: search.value,
+//       sort_by: sortKey.value,
+//       sort_dir: sortDirection.value
+//     }
+//   })
+//   layanans.value = data.data
+//   total.value = data.total
+// }
 
-const customLayananLabel = (option) => {
-  if (!option) return '-'
-  return `${option.group_layanan || ''} - ${option.nama_layanan || ''}`
-}
-
-const activeLayananOptions = computed(() =>
-  layanans.value.filter(l => l.status_layanan === 'Aktif')
-)
-
-// === Modal Open/Create/Edit ===
 const openCreate = () => {
   modalMode.value = 'create'
   form.value = {
-    id_layanan: '',
-    nama_permintaan: '',
-    permintaan_description: ''
+    nama_rating: '',
+    nilai_rating: 1,
+    rating_description: '',
   }
   showModal.value = true
 }
 
-const openModal = async (item, mode) => {
+
+const openModal = (rating, mode) => {
   modalMode.value = mode
-
-  // Set initial form values
-  form.value = {
-    id_layanan: null,
-    nama_permintaan: item.nama_permintaan,
-    permintaan_description: item.permintaan_description,
-    id_permintaan: item.id_permintaan,
-  }
-
-  // Wait for DOM and reactive updates to settle
-  await nextTick()
-
-  // Then safely assign the selected layanan object
-  form.value.id_layanan = layanans.value.find(
-    l => l.id_layanan === item.id_layanan
-  ) || null
-
+  form.value = { ...rating }
   showModal.value = true
 }
 
-// === Submit Form ===
 const submitForm = async () => {
   globalLoading.value = true;
   try {
-    const payload = {
-      id_layanan: form.value.id_layanan?.id_layanan,
-      nama_permintaan: form.value.nama_permintaan,
-      permintaan_description: form.value.permintaan_description
-    };
     if (modalMode.value === 'edit') {
-      await axiosInstance.put(`/permintaan/${form.value.id_permintaan}`, payload);
+      await axiosInstance.put(`/ratings/${form.value.id_rating}`, form.value);
     } else {
-      await axiosInstance.post('/permintaan', payload);
+      await axiosInstance.post('/ratings', form.value);
     }
     showModal.value = false;
-    await fetchPermintaan();
-  } catch (err) {
-    console.error('Error saving permintaan:', err);
+    await fetchRating();
+  } catch (error) {
+    console.error('Error saving rating:', error);
   } finally {
     globalLoading.value = false;
   }
 };
 
-// === Delete Permintaan ===
-const deletePermintaan = async (id) => {
-  if (!confirm('Apakah anda yakin ingin menghapus permintaan ini?')) return;
-  
+
+const deleteRating = async (id) => {
+  if (!confirm('Apakah anda yakin ingin menghapus rating ini?')) return;
+
   globalLoading.value = true;
   try {
-    await axiosInstance.delete(`/permintaan/${id}`);
-    await fetchPermintaan();
-  } catch (err) {
-    console.error('Error deleting permintaan:', err);
+    await axiosInstance.delete(`/ratings/${id}`);
+    await fetchRating();
+  } catch (error) {
+    console.error('Error deleting rating:', error);
   } finally {
     globalLoading.value = false;
   }
 };
 
-// === Debounced Search ===
+const getStars = (nilai) => {
+  const n = Number(nilai) || 0
+  const max = 5
+  const filled = '★'.repeat(Math.min(n, max))
+  const empty = '☆'.repeat(Math.max(max - n, 0))
+  return filled + empty
+}
+
+
+
+const totalPages = computed(() => Math.ceil(total.value / perPage.value))
+
 const handleSearch = () => {
   clearTimeout(searchDebounce)
   searchDebounce = setTimeout(() => {
     page.value = 1
-    fetchPermintaan(false)
+    fetchRating(false)
   }, 500)
 }
 
-// === Lifecycle ===
-onMounted(() => {
-  fetchPermintaan()
-  fetchLayanans()
-})
+onMounted(() => { fetchRating() })
 
-// === Watchers ===
-watch([page, perPage], fetchPermintaan)
+watch([page, perPage], fetchRating)
 
 watch([sortKey, sortDirection], () => {
-  page.value = 1
-  fetchPermintaan()
-})
+  page.value = 1;
+  fetchRating();
+});
+
 </script>

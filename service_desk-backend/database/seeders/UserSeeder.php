@@ -17,11 +17,11 @@ class UserSeeder extends Seeder
         // Admin user
         $admin = User::create([
             'id_divisi' => 2,
-            'nama_user' => 'Admin ETI',
-            'nik_user' => 'admin.eti@example.com',
-            'email' => 'admin.eti@example.com',
+            'nama_user' => 'Admin Service Desk',
+            'nik_user' => 'admin.servicedesk@example.com',
+            'email' => 'admin.servicedesk@example.com',
             'email_verified_at' => now(),
-            'password' => Hash::make('admineti'),
+            'password' => Hash::make('adminsd'),
             'remember_token' => Str::random(10),
         ]);
         $admin->syncRoles('Admin');

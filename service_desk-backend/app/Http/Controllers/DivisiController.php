@@ -14,9 +14,9 @@ class DivisiController extends Controller
         // ✅ Filtering
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('nama_divisi', 'like', '%' . $request->search . '%')
-                ->orWhere('kode_divisi', 'like', '%' . $request->search . '%')
-                ->orWhere('divisi_alias', 'like', '%' . $request->search . '%');
+                $q->where('nama_divisi', 'ilike', '%' . $request->search . '%')
+                ->orWhere('kode_divisi', 'ilike', '%' . $request->search . '%')
+                ->orWhere('divisi_alias', 'ilike', '%' . $request->search . '%');
             });
         }
 

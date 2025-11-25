@@ -14,10 +14,10 @@ class TicketPriorityController extends Controller
         // ✅ Search
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('tingkat_priority', 'like', '%' . $request->search . '%')
-                ->orWhere('tingkat_dampak', 'like', '%' . $request->search . '%')
-                ->orWhere('tingkat_urgensi', 'like', '%' . $request->search . '%')
-                ->orWhere('ticket_priority_description', 'like', '%' . $request->search . '%');
+                $q->where('tingkat_priority', 'ilike', '%' . $request->search . '%')
+                ->orWhere('tingkat_dampak', 'ilike', '%' . $request->search . '%')
+                ->orWhere('tingkat_urgensi', 'ilike', '%' . $request->search . '%')
+                ->orWhere('ticket_priority_description', 'ilike', '%' . $request->search . '%');
             });
         }
 

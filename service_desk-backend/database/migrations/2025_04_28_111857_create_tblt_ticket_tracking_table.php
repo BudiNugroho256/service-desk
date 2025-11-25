@@ -31,7 +31,6 @@ return new class extends Migration
             $table->timestamp('comment_created_on')->index()->nullable();
             $table->text('user_comment')->nullable();
             $table->text('cancel_comment')->nullable();
-            $table->text('solusi_comment')->nullable();
 
             // Timestamp
             $table->timestamps();

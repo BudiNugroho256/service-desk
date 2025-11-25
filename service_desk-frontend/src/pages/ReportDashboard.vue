@@ -63,7 +63,7 @@
         <!-- Power BI Iframe Without Halaman Tabs -->
         <div class="w-full h-[600px] px-6 py-3">
           <iframe
-            src="https://app.powerbi.com/view?r=eyJrIjoiZmE3OTk5ZjAtNjhkNC00MGViLWE5N2QtODI2OWU1ODM1Mjc3IiwidCI6IjM0ODViOTYzLTgyYmEtNGE2Zi04MTBmLWI1Y2MyMjZmZjg5OCIsImMiOjEwfQ%3D%3D&pageName=65d95ef2131fbe2504d9"
+            src="https://app.powerbi.com/view?r=eyJrIjoiZWRhZWNjNzktNTM0Ny00YTg2LTkyZmUtYWQ4ZGFkMjZmNDk3IiwidCI6Ijc1ZWFhYzQzLTlhNTUtNGM5Yy1iNGNjLTNjYTg1YjQxMzMxNyIsImMiOjEwfQ%3D%3D"
             class="w-full h-full border-0"
             allowfullscreen
           ></iframe>

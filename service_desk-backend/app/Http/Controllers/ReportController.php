@@ -167,8 +167,8 @@ class ReportController extends Controller
 
         if ($data->isNotEmpty()) {
             $columns = array_keys($data->first());
-            $startCol = 2; // Column B
-            $startRow = 2; // Row 2
+            $startCol = 1; // Column B
+            $startRow = 1; // Row 2
             $lastColIndex = $startCol + count($columns) - 1;
             $headerRange = Coordinate::stringFromColumnIndex($startCol) . $startRow . ':' . Coordinate::stringFromColumnIndex($lastColIndex) . $startRow;
 
@@ -251,9 +251,9 @@ class ReportController extends Controller
         // ✅ Search
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('nama_report', 'like', '%' . $request->search . '%')
-                  ->orWhere('inisial_report', 'like', '%' . $request->search . '%')
-                  ->orWhere('report_description', 'like', '%' . $request->search . '%');
+                $q->where('nama_report', 'ilike', '%' . $request->search . '%')
+                  ->orWhere('inisial_report', 'ilike', '%' . $request->search . '%')
+                  ->orWhere('report_description', 'ilike', '%' . $request->search . '%');
             });
         }
 

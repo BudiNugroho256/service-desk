@@ -97,7 +97,7 @@
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ (page - 1) * perPage + index + 1 }}</td>
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ solusi.nama_solusi }}</td>
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ solusi.solusi_description }}</td>
-                <td class="px-4 py-3 border border-gray-300 space-x-1 truncate">
+                <td class="px-4 py-3 border border-gray-300 space-x-1 w-36">
                   <button @click="openModal(solusi, 'edit')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">Edit</button>
                   <button @click="deleteSolusi(solusi.id_solusi)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">Delete</button>
                 </td>
@@ -147,14 +147,14 @@
             </div>
 
           <!-- Deskripsi Solusi -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Solusi</label>
-            <textarea
-              v-model="form.solusi_description"
-              rows="3"
-              class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 resize-y"
-            ></textarea>
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Solusi</label>
+              <textarea
+                v-model="form.solusi_description"
+                rows="3"
+                class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 resize-y"
+              ></textarea>
+            </div>
 
 
             <!-- Buttons -->
@@ -282,7 +282,7 @@ const submitForm = async () => {
 
 
 const deleteSolusi = async (id) => {
-  if (!confirm('Are you sure you want to delete this solusi?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus solusi ini?')) return;
 
   globalLoading.value = true;
   try {

@@ -16,8 +16,8 @@ class PermintaanController extends Controller
         // ✅ Search
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('nama_permintaan', 'like', '%' . $request->search . '%')
-                ->orWhere('permintaan_description', 'like', '%' . $request->search . '%');
+                $q->where('nama_permintaan', 'ilike', '%' . $request->search . '%')
+                ->orWhere('permintaan_description', 'ilike', '%' . $request->search . '%');
             });
         }
 

@@ -15,15 +15,13 @@ class TicketClosedStatus extends Mailable
     public Ticket $ticket;
     public string $systemComment;
     public ?string $picComment;
-    public ?string $solusiComment;
     public int $idTicketTracking;
 
-    public function __construct(Ticket $ticket, string $systemComment, ?string $picComment = null, ?string $solusiComment = null, int $idTicketTracking)
+    public function __construct(Ticket $ticket, string $systemComment, ?string $picComment = null, int $idTicketTracking)
     {
         $this->ticket = $ticket;
         $this->systemComment = $systemComment;
         $this->picComment = $picComment;
-        $this->solusiComment = $solusiComment;
         $this->idTicketTracking = $idTicketTracking;
     }
 
@@ -56,13 +54,12 @@ class TicketClosedStatus extends Mailable
             <p>Halo <strong>{$userName}</strong>,</p>
             <p>Tiket Anda telah selesai dikerjakan.</p>
         ";
-
         
-        if (!empty($this->solusiComment)) {
+        if (!empty($this->ticket->teks_pendukung)) {
             $body .= "
-                <p><strong>Catatan dari PIC:</strong></p>
+                <p><strong>Teks Pendukung:</strong></p>
                 <div style='border:1px solid #ccc;padding:10px;margin-bottom:20px;'>
-                    {$this->solusiComment}
+                    <a>{$this->ticket->teks_pendukung}</a>
                 </div>
             ";
         }

@@ -25,6 +25,8 @@ return new class extends Migration
             $table->foreignId('id_solusi')->nullable()->constrained('tblm_solusi', 'id_solusi')->nullOnDelete();
             $table->foreignId('id_rootcause')->nullable()->constrained('tblm_rootcause', 'id_rootcause')->nullOnDelete();
             $table->foreignId('id_permintaan')->nullable()->constrained('tblm_permintaan', 'id_permintaan')->nullOnDelete();
+            $table->foreignId('id_rating')->nullable()->constrained('tblm_rating', 'id_rating')->nullOnDelete();
+            $table->foreignId('id_eskalasi_pihak_ketiga')->nullable()->constrained('tblt_eskalasi_pihak_ketiga', 'id_eskalasi_pihak_ketiga')->nullOnDelete();
 
             // Foreign Key with Timestamp
             $table->timestamp('created_on')->index()->nullable()->useCurrent();
@@ -33,6 +35,7 @@ return new class extends Migration
             $table->foreignId('last_updated_by')->nullable()->constrained('tblm_user', 'id_user')->nullOnDelete();
             $table->timestamp('escalation_date')->index()->nullable()->useCurrent();
             $table->foreignId('escalation_to')->nullable()->constrained('tblm_user', 'id_user')->nullOnDelete();
+            $table->foreignId('ticket_closed_by')->nullable()->constrained('tblm_user','id_user')->nullOnDelete();
 
             // Status with Timestamp
             $table->string('ticket_status')->index();
@@ -56,15 +59,15 @@ return new class extends Migration
             $table->string('solusi_awal')->nullable();
 
             // Third Party Field
-            $table->string('tp_pic_ticket')->nullable();
-            $table->string('tp_pic_company')->nullable();
-            $table->timestamp('tp_accepted_date')->index()->nullable();
-            $table->integer('tp_sla_duration')->index()->nullable();
-            $table->string('tp_rootcause')->nullable();
-            $table->string('tp_solusi')->nullable();
-            $table->timestamp('tp_closed_date')->index()->nullable();
+            // $table->string('tp_pic_company')->nullable();
+            // $table->timestamp('tp_accepted_date')->index()->nullable();
+            // $table->integer('tp_sla_duration')->index()->nullable();
+            // $table->string('tp_rootcause')->nullable();
+            // $table->string('tp_solusi')->nullable();
+            // $table->timestamp('tp_closed_date')->index()->nullable();
 
             // Additional Support Fields
+            $table->text('teks_pendukung')->nullable();
             $table->text('link_pendukung')->nullable();
             $table->text('screenshot_pendukung')->nullable();
             $table->json('teknisi_tambahan')->nullable();

@@ -68,15 +68,6 @@ class TicketOnProgressStatus extends Mailable
             </p>
         ";
 
-        if (!empty($analisisAwal)) {
-            $body .= "
-                <p><strong>Analisis Awal:</strong></p>
-                <div style='border:1px solid #ccc;padding:10px;margin-bottom:20px;'>
-                    {$analisisAwal}
-                </div>
-            ";
-        }
-
         $body .= "
             <p><strong>Judul:</strong> {$this->ticket->ticket_title}</p>
 
@@ -94,7 +85,7 @@ class TicketOnProgressStatus extends Mailable
                 {$permintaan}
                 <li><strong>PIC Tiket:</strong> {$picTiket}</li>
                 <li><strong>PIC Eskalasi:</strong> {$picEskalasi}</li>
-                <li><strong>Perkiraan Selesai:</strong> {$dueDateFormatted}</li>
+                <li><strong>Perkiraan Selesai:</strong> {$this->ticket->due_date}</li>
                 <li><strong>Tracking Point:</strong> {$this->systemComment}</li>
             </ul>
 

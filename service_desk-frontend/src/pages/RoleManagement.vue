@@ -88,16 +88,9 @@
             </thead>
             <tbody>
               <tr v-for="(role, index) in roles" :key="role.id" :class="[index % 2 === 0 ? 'bg-gray-50' : 'bg-white', 'hover:bg-gray-100']">
-                <td class="px-4 py-3 border border-gray-300">{{ (page - 1) * perPage + index + 1 }}</td>
-                <td class="px-4 py-3 border border-gray-300">{{ role.name }}</td>
-                <!-- <td class="px-4 py-3 border border-gray-300">
-                  <div class="flex flex-wrap gap-1">
-                    <span v-for="perm in role.permissions" :key="perm.id" class="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded">
-                      {{ perm.name }}
-                    </span>
-                  </div>
-                </td> -->
-                <td class="px-4 py-3 border border-gray-300 space-x-1">
+                <td class="px-4 py-3 border border-gray-300 truncate">{{ (page - 1) * perPage + index + 1 }}</td>
+                <td class="px-4 py-3 border border-gray-300 truncate">{{ role.name }}</td>
+                <td class="px-4 py-3 border border-gray-300 space-x-1 w-50">
                   <button @click="openModal(role, 'view')" class="bg-cyan-500 hover:bg-cyan-600 text-white px-3 py-1 rounded text-xs">Show</button>
                   <button @click="openModal(role, 'edit')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">Edit</button>
                   <button @click="deleteRole(role.id)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">Delete</button>
@@ -141,20 +134,20 @@
         <div class="bg-white w-full max-w-lg max-h-[90vh] rounded shadow-lg p-6 overflow-y-auto">
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-semibold">
-              {{ modalMode === 'edit' ? 'Edit Role' : modalMode === 'view' ? 'View Role' : 'Create Role' }}
+              {{ modalMode === 'edit' ? 'Edit Role' : modalMode === 'view' ? 'Show Role' : 'Tambah Role' }}
             </h2>
             <button @click="showModal = false" class="text-gray-500 hover:text-gray-700">&times;</button>
           </div>
 
           <form @submit.prevent="submitForm" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Role Name</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nama Role</label>
               <input v-model="form.name" :disabled="modalMode === 'view'" type="text"
                 class="w-full border border-gray-300 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-300" />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Permissions</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">List Permission</label>
               <div class="flex flex-col space-y-1">
                 <div v-for="perm in allPermissions" :key="perm.id">
                   <label class="inline-flex items-center text-sm">
@@ -304,7 +297,7 @@ const submitForm = async () => {
 };
 
 const deleteRole = async (id) => {
-  if (!confirm('Are you sure you want to delete this role?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus role ini?')) return;
   
   globalLoading.value = true;
   try {

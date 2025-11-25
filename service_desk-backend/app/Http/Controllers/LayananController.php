@@ -15,9 +15,9 @@ class LayananController extends Controller
         // ✅ Filtering
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('group_layanan', 'like', '%' . $request->search . '%')
-                  ->orWhere('nama_layanan', 'like', '%' . $request->search . '%')
-                  ->orWhere('status_layanan', 'like', '%' . $request->search . '%');
+                $q->where('group_layanan', 'ilike', '%' . $request->search . '%')
+                  ->orWhere('nama_layanan', 'ilike', '%' . $request->search . '%')
+                  ->orWhere('status_layanan', 'ilike', '%' . $request->search . '%');
             });
         }
 

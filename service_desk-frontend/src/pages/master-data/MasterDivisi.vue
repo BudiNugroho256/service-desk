@@ -100,7 +100,7 @@
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ divisi.kode_divisi }}</td>
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ divisi.divisi_alias }}</td>
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ divisi.lantai_divisi }}</td>
-                <td class="px-4 py-3 border border-gray-300 space-x-1 truncate">
+                <td class="px-4 py-3 border border-gray-300 space-x-1 w-36">
                   <button @click="openModal(divisi, 'edit')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">Edit</button>
                   <button @click="deleteDivisi(divisi.id_divisi)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">Delete</button>
                 </td>
@@ -304,7 +304,7 @@ const submitForm = async () => {
 
 
 const deleteDivisi = async (id) => {
-  if (!confirm('Are you sure you want to delete this division?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus divisi ini?')) return;
   globalLoading.value = true;
   try {
     await axiosInstance.delete(`/divisions/${id}`);

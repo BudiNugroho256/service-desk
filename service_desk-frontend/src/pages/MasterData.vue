@@ -30,5 +30,7 @@ const menuItems = [
   { label: "Solusi", route: "/master-data/solusi" },
   { label: "Ticket Priority", route: "/master-data/ticket-priority" },
   { label: "Report", route: "/master-data/report" },
+  { label: "Rating", route:"/master-data/rating"},
+  { label: "Pihak Ketiga", route:"/master-data/pihak-ketiga"}
 ];
 </script>

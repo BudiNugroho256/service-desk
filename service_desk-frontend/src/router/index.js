@@ -18,6 +18,9 @@ import PermissionManagement from '@/pages/PermissionManagement.vue';
 import MasterPermintaan from '@/pages/master-data/MasterPermintaan.vue';
 import MasterReport from '@/pages/master-data/MasterReport.vue';
 import ReportDashboard from '@/pages/ReportDashboard.vue';
+import MasterRating from '@/pages/master-data/MasterRating.vue';
+import RatingMonitoring from '@/pages/RatingMonitoring.vue';
+import MasterPihakKetiga from '@/pages/master-data/MasterPihakKetiga.vue';
 
 const routes = [
   {
@@ -33,17 +36,17 @@ const routes = [
     component: TicketPage,
     meta: { requiresAuth: true }
   },
-  // {
-  //   path: '/dashboard',
-  //   name: 'Dashboard',
-  //   component: Dashboard,
-  //   meta: { requiresAuth: true }
-  // },
   {
     path: '/login',
     name: 'Login',
     component: Login,
     meta: { guestOnly: true }
+  },
+  {
+    path: '/ratings',
+    name: 'RatingMonitoring',
+    component: RatingMonitoring,
+    meta: { requiresAuth: true}
   },
   // {
   //   path: '/register',
@@ -70,18 +73,6 @@ const routes = [
     component: TicketDetail,
     meta: { requiresAuth: true }
   },
-  // {
-  //   path: '/tickets/:id/edit',
-  //   name: 'EditTicket',
-  //   component: () => import('@/pages/Edit.vue'),
-  //   meta: { requiresAuth: true }
-  // },
-  // {
-  //   path: '/create',
-  //   name: 'CreateTicket',
-  //   component: () => import('@/pages/Create.vue'),
-  //   meta: { requiresAuth: true }
-  // },
   {
     path: '/master-data',
     name: 'MasterData',
@@ -100,24 +91,6 @@ const routes = [
     component: MasterDivisi,
     meta: { requiresAuth: true }
   },
-  // {
-  //   path: '/master-data/ticket-status',
-  //   name: 'MasterTicketStatus',
-  //   component: MasterTicketStatus,
-  //   meta: { requiresAuth: true }
-  // },
-  // {
-  //   path: '/master-data/tracking-point',
-  //   name: 'MasterTrackingPoint',
-  //   component: MasterTrackingPoint,
-  //   meta: { requiresAuth: true }
-  // },
-  // {
-  //   path: '/master-data/ticket-type',
-  //   name: 'MasterTicketType',
-  //   component: MasterTicketType,
-  //   meta: { requiresAuth: true }
-  // },
   {
     path: '/master-data/ticket-priority',
     name: 'MasterTicketPriority',
@@ -156,12 +129,18 @@ const routes = [
     component: MasterReport,
     meta: { requiresAuth: true }
   },
-  // {
-  //   path:'/master-data/rating',
-  //   name: 'MasterRating',
-  //   component: MasterRating,
-  //   meta: { requiresAuth: true }
-  // }
+  {
+    path: '/master-data/rating',
+    name: 'MasterRating',
+    component: MasterRating,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/master-data/pihak-ketiga',
+    name: 'MasterPihakKetiga',
+    component: MasterPihakKetiga,
+    meta: { requiresAuth: true }
+  },
   {
     path:'/roles',
     name: 'RoleManagement',

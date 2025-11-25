@@ -13,7 +13,7 @@ class PermissionController extends Controller
 
         // ✅ Search
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('name', 'ilike', '%' . $request->search . '%');
         }
 
         // ✅ Sort

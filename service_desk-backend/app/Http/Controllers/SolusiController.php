@@ -14,8 +14,8 @@ class SolusiController extends Controller
         // ✅ Search
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('nama_solusi', 'like', '%' . $request->search . '%')
-                  ->orWhere('solusi_description', 'like', '%' . $request->search . '%');
+                $q->where('nama_solusi', 'ilike', '%' . $request->search . '%')
+                  ->orWhere('solusi_description', 'ilike', '%' . $request->search . '%');
             });
         }
 

@@ -99,7 +99,7 @@
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ layanan.group_layanan }}</td>
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ layanan.nama_layanan }}</td>
                 <td class="px-4 py-3 border border-gray-300 truncate">{{ layanan.status_layanan}}</td>
-                <td class="px-4 py-3 border border-gray-300 space-x-1 truncate">
+                <td class="px-4 py-3 border border-gray-300 space-x-1 w-36">
                   <button @click="openModal(layanan, 'edit')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">Edit</button>
                   <button @click="deleteLayanan(layanan.id_layanan)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs">Delete</button>
                 </td>
@@ -304,7 +304,7 @@ const submitForm = async () => {
 
 
 const deleteLayanan = async (id) => {
-  if (!confirm('Are you sure you want to delete this layanan?')) return;
+  if (!confirm('Apakah anda yakin ingin menghapus layanan ini?')) return;
   
   globalLoading.value = true;
   try {

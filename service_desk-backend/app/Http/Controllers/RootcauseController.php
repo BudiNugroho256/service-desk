@@ -17,8 +17,8 @@ class RootcauseController extends Controller
         // ✅ Search
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('nama_rootcause', 'like', '%' . $request->search . '%')
-                ->orWhere('rootcause_description', 'like', '%' . $request->search . '%');
+                $q->where('nama_rootcause', 'ilike', '%' . $request->search . '%')
+                ->orWhere('rootcause_description', 'ilike', '%' . $request->search . '%');
             });
         }
 

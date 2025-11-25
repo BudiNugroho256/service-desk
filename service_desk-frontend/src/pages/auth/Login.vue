@@ -41,17 +41,17 @@ const login = async () => {
 
     // 🔥 ADD THIS BLOCK BELOW:
     const userRoles = user.roles?.map(r => r.name) || [];
-    if (userRoles.includes("End User")) {
-      // Call logout to clear session
-      await axiosInstance.post("/logout");
+    // if (userRoles.includes("End User")) {
+    //   // Call logout to clear session
+    //   await axiosInstance.post("/logout");
 
-      // Remove token and auth header
-      localStorage.removeItem("token");
-      delete axiosInstance.defaults.headers.common["Authorization"];
+    //   // Remove token and auth header
+    //   localStorage.removeItem("token");
+    //   delete axiosInstance.defaults.headers.common["Authorization"];
 
-      errors.email = ["Akses ditolak. End User tidak diperbolehkan mengakses aplikasi ini"];
-      return;
-    }
+    //   errors.email = ["Akses ditolak. End User tidak diperbolehkan mengakses aplikasi ini"];
+    //   return;
+    // }
 
 
     setUser(user);
